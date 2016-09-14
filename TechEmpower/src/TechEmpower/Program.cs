@@ -12,7 +12,10 @@ namespace TechEmpower
         const string Response = "HTTP/1.1 200 OK\r\nServer: TechEmpowerTest\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n";
 
         const string PipelinedResponse =
-            Response + Response + Response + Response + Response + Response + Response + Response + Response + Response + Response + Response + Response + Response;
+            Response + Response + Response + Response + 
+            Response + Response + Response + Response + 
+            Response + Response + Response + Response +
+            Response + Response + Response + Response;
 
         static IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 5000);
         static TcpListener listener;
