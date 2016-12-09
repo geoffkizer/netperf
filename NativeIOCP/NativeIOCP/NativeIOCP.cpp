@@ -8,15 +8,17 @@
 class Connection;
 void QueueConnectionHandler();
 
-// Stuff to consider later:
-// (1) FILE_FLAG_SKIP_COMPLETION or whatever it is
-
 SOCKET s_listenSocket = INVALID_SOCKET;
 
-const char s_responseMessage[] = "Hello world!\n";
+#define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
+#define PIPELINED_RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE
+
+const char s_responseMessage[] = PIPELINED_RESPONSE;
 const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude trailing null
 
-bool s_trace = true;
+const int s_expectedReadSize = 848;
+
+bool s_trace = false;
 
 
 // Inherit from OVERLAPPED so we can cast to/from
@@ -149,6 +151,12 @@ private:
 		if (s_trace)
 		{
 			printf("Read complete, bytesRead = %u\n", bytesRead);
+		}
+
+		if (bytesRead != s_expectedReadSize)
+		{
+			printf("Unexpected read size, bytesRead = %u", bytesRead);
+			exit(-1);
 		}
 
 		// CONSIDER: May need to loop on read, probably isn't necessary for benchmarking
