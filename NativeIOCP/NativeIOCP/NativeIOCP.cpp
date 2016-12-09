@@ -145,6 +145,9 @@ private:
 			{
 				printf("Connection closed by client\n");
 			}
+
+			closesocket(_socket);
+			delete this;
 			return;
 		}
 
@@ -191,6 +194,12 @@ private:
 			printf("Write complete, bytesRead = %u\n", bytesWritten);
 		}
 
+		if (bytesWritten != s_responseMessageLength)
+		{
+			printf("Unexpected write size, bytesWritten = %u", bytesWritten);
+			exit(-1);
+		}
+
 		// CONSIDER: May need to loop on write, probably isn't necessary for benchmarking
 
 		DoRead();
@@ -200,8 +209,15 @@ private:
 	{
 		if (dwErrorCode != 0)
 		{
-			printf("Socket I/O failed, error code = %u\n", dwErrorCode);
-			exit(-1);
+			// Just assume this is a connection reset, and stop processing the connection
+			if (s_trace)
+			{
+				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
+			}
+
+			closesocket(_socket);
+			delete this;
+			return;
 		}
 
 		switch (_state)
