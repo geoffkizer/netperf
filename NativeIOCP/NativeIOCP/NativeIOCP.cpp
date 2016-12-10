@@ -18,8 +18,10 @@ const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude tr
 
 const int s_expectedReadSize = 848;
 
+// Cmd line arguments
 bool s_trace = false;
-
+bool s_syncCompletions = true;
+int s_acceptCount = 1;
 
 // Inherit from OVERLAPPED so we can cast to/from
 
@@ -93,11 +95,14 @@ private:
 			exit(-1);
 		}
 
-		err = SetFileCompletionNotificationModes((HANDLE)_socket, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS);
-		if (err == 0)
+		if (s_syncCompletions)
 		{
-			printf("SetFileCompletionNotificationModes of accepted socket failed with error: %u\n", GetLastError());
-			exit(-1);
+			err = SetFileCompletionNotificationModes((HANDLE)_socket, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | FILE_SKIP_SET_EVENT_ON_HANDLE);
+			if (err == 0)
+			{
+				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %u\n", GetLastError());
+				exit(-1);
+			}
 		}
 
 		BOOL nodelay = true;
@@ -124,7 +129,8 @@ private:
 		if (err == 0)
 		{
 			// Synchronous completion
-			OnReadComplete(bytesReceived);
+			if (s_syncCompletions)
+				OnReadComplete(bytesReceived);
 		}
 		else
 		{
@@ -174,7 +180,8 @@ private:
 		if (err == 0)
 		{
 			// Synchronous completion
-			OnWriteComplete(bytes);
+			if (s_syncCompletions)
+				OnWriteComplete(bytes);
 		}
 		else
 		{
@@ -265,16 +272,6 @@ public:
 	}
 };
 
-#if 0
-void CALLBACK ListenSocketCallback(
-	DWORD dwErrorCode,
-	DWORD dwNumberOfBytesTransfered,
-	LPOVERLAPPED lpOverlapped)
-{
-	Connection::OnAccept(dwErrorCode, dwNumberOfBytesTransfered, lpOverlapped);
-}
-#endif
-
 void QueueConnectionHandler()
 {
 	if (QueueUserWorkItem(&Connection::Run, NULL, 0) == FALSE)
@@ -331,12 +328,79 @@ void Start()
 		exit(-1);
 	}
 
-	// Start running by queuing a single connection handler to run
-	QueueConnectionHandler();
+	// Spawn async accepts
+	for (int i = 0; i < s_acceptCount; i++)
+		QueueConnectionHandler();
 }
 
-int main()
+void PrintUsage()
 {
+	printf("Usage: nativeiocp [args]\n");
+	printf("    -trace          Enable console trace output\n");
+	printf("    -nosync         Don't process synchronous completions synchronously\n");
+	printf("    -accept [n]     Issue [n] accept calls at startup\n");
+
+	exit(-1);
+}
+
+void PrintUnkownArgumentError(char * argument)
+{
+	printf("Unexpected argument %s\n", argument);
+	PrintUsage();
+}
+
+void PrintArgumentValueMissingError(char * argument)
+{
+	printf("Expected a value for argument %s\n", argument);
+	PrintUsage();
+}
+
+void PrintArgumentValueInvalidError(char * argument, char * value)
+{
+	printf("Invalid value for argument %s: %s\n", argument, value);
+	PrintUsage();
+}
+
+void ParseCommandLine(int argc, char **argv)
+{
+	int i = 1;
+	while (i < argc)
+	{
+		if (_stricmp(argv[i], "-trace") == 0)
+		{
+			s_trace = true;
+		}
+		if (_stricmp(argv[i], "-nosync") == 0)
+		{
+			s_syncCompletions = false;
+		}
+		else if (_stricmp(argv[i], "-accept") == 0)
+		{
+			i++;
+			if (i == argc)
+			{
+				PrintArgumentValueMissingError(argv[i - 1]);
+			}
+
+			s_acceptCount = atoi(argv[i]);
+			if (s_acceptCount == 0)
+			{
+				PrintArgumentValueInvalidError(argv[i - 1], argv[i]);
+			}
+		}
+		else
+		{
+			PrintUnkownArgumentError(argv[i]);
+		}
+
+		i++;
+	}
+}
+
+int main(int argc, char ** argv)
+{
+	ParseCommandLine(argc, argv);
+
 	Start();
 
 	printf("Server running\n");
