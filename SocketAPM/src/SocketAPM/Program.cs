@@ -10,9 +10,27 @@ namespace SocketAPM
     {
         public static Socket s_listenSocket;
 
-        public const bool s_trace = true;
+        public const bool s_trace = false;
 
-        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("Hello world!\n");
+        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
+
+        public const int s_expectedReadSize = 848;
 
         class Connection
         {
@@ -54,12 +72,48 @@ namespace SocketAPM
 
             private void DoRead()
             {
-                _socket.BeginReceive(_readBuffer, 0, _readBuffer.Length, SocketFlags.None, _readCallback, null);
+                try
+                {
+                    _socket.BeginReceive(_readBuffer, 0, _readBuffer.Length, SocketFlags.None, _readCallback, null);
+                }
+                catch (SocketException e)
+                {
+                    if (e.SocketErrorCode == SocketError.ConnectionReset)
+                    {
+                        _socket.Dispose();
+                        return;
+                    }
+
+                    // Not clear why ConnectionAborted happens here.  Is this a bug?
+                    if (e.SocketErrorCode == SocketError.ConnectionAborted)
+                    {
+                        _socket.Dispose();
+                        return;
+                    }
+
+                    Console.WriteLine("Read failed synchronously, SocketError = {0}", e.SocketErrorCode);
+                    throw;
+                }
             }
 
             private void OnRead(IAsyncResult ar)
             {
-                int bytesRead = _socket.EndReceive(ar);
+                int bytesRead;
+                try
+                {
+                    bytesRead = _socket.EndReceive(ar);
+                }
+                catch (SocketException e)
+                {
+                    if (e.SocketErrorCode == SocketError.ConnectionReset)
+                    {
+                        _socket.Dispose();
+                        return;
+                    }
+
+                    Console.WriteLine("Read failed, SocketError = {0}", e.SocketErrorCode);
+                    throw;
+                }
 
                 if (bytesRead == 0)
                 {
@@ -68,12 +122,18 @@ namespace SocketAPM
                         Console.WriteLine("Connection closed by client");
                     }
 
+                    _socket.Dispose();
                     return;
                 }
 
                 if (s_trace)
                 {
                     Console.WriteLine("Read complete, bytesRead = {0}", bytesRead);
+                }
+
+                if (bytesRead != s_expectedReadSize)
+                {
+                    throw new Exception(string.Format("unexpected read size, bytesRead = {0}", bytesRead));
                 }
 
                 // Do write now

@@ -11,9 +11,27 @@ namespace SocketAwait
     {
         public static Socket s_listenSocket;
 
-        public const bool s_trace = true;
+        public const bool s_trace = false;
 
-        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("Hello world!\n");
+        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
+
+        public const int s_expectedReadSize = 848;
 
         class Connection
         {
@@ -40,7 +58,22 @@ namespace SocketAwait
 
                 while (true)
                 {
-                    int bytesRead = await _socket.ReceiveAsync(new ArraySegment<byte>(_readBuffer), SocketFlags.None);
+                    int bytesRead;
+                    try
+                    {
+                        bytesRead = await _socket.ReceiveAsync(new ArraySegment<byte>(_readBuffer), SocketFlags.None);
+                    }
+                    catch (SocketException e)
+                    {
+                        if (e.SocketErrorCode == SocketError.ConnectionReset)
+                        {
+                            _socket.Dispose();
+                            return;
+                        }
+
+                        throw;
+                    }
+
                     if (bytesRead == 0)
                     {
                         if (s_trace)
@@ -48,12 +81,18 @@ namespace SocketAwait
                             Console.WriteLine("Connection closed by client");
                         }
 
+                        _socket.Dispose();
                         break;
                     }
 
                     if (s_trace)
                     {
                         Console.WriteLine("Read complete, bytesRead = {0}", bytesRead);
+                    }
+
+                    if (bytesRead != s_expectedReadSize)
+                    {
+                        throw new Exception(string.Format("unexpected read size, bytesRead = {0}", bytesRead));
                     }
 
                     int bytesWritten = await _socket.SendAsync(new ArraySegment<byte>(s_responseMessage), SocketFlags.None);

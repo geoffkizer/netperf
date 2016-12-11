@@ -11,9 +11,27 @@ namespace SocketTAP
     {
         public static Socket s_listenSocket;
 
-        public const bool s_trace = true;
+        public const bool s_trace = false;
 
-        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("Hello world!\n");
+        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
+            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
+
+        public const int s_expectedReadSize = 848;
 
         class Connection
         {
@@ -60,7 +78,31 @@ namespace SocketTAP
 
             private void OnRead(Task<int> t)
             {
-                int bytesRead = t.Result;
+                int bytesRead;
+                try
+                {
+                    bytesRead = t.Result;
+                }
+                catch (SocketException e)
+                {
+                    if (e.SocketErrorCode == SocketError.ConnectionReset)
+                    {
+                        _socket.Dispose();
+                        return;
+                    }
+
+#if false
+                    // Not clear why ConnectionAborted happens here.  Is this a bug?
+                    if (e.SocketErrorCode == SocketError.ConnectionAborted)
+                    {
+                        _socket.Dispose();
+                        return;
+                    }
+#endif
+
+                    Console.WriteLine("Read failed, SocketError = {0}", e.SocketErrorCode);
+                    throw;
+                }
 
                 if (bytesRead == 0)
                 {
