@@ -98,6 +98,14 @@ namespace SocketAPM
 
             private void OnRead(IAsyncResult ar)
             {
+                if (s_trace)
+                {
+                    if (ar.CompletedSynchronously)
+                    {
+                        Console.WriteLine("Read completed synchronously");
+                    }
+                }
+
                 int bytesRead;
                 try
                 {
@@ -143,11 +151,24 @@ namespace SocketAPM
 
             private void OnWrite(IAsyncResult ar)
             {
+                if (s_trace)
+                {
+                    if (ar.CompletedSynchronously)
+                    {
+                        Console.WriteLine("Write completed synchronously");
+                    }
+                }
+
                 int bytesWritten = _socket.EndSend(ar);
 
                 if (s_trace)
                 {
                     Console.WriteLine("Write complete, bytesWritten = {0}", bytesWritten);
+                }
+
+                if (bytesWritten != s_responseMessage.Length)
+                {
+                    throw new Exception(string.Format("unexpected write size, bytesWritten = {0}", bytesWritten));
                 }
 
                 DoRead();
