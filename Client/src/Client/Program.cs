@@ -1,36 +1,34 @@
 ﻿using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Client
 {
     public class Program
     {
-        public const bool s_trace = false;
+        // Command line settable parameters
+        public static int s_connectionCount = 512;
+        public static bool s_trace = false;
 
-        public static readonly byte[] s_requestMessage = Enumerable.Range(0, 848).Select(x => (byte)x).ToArray();
+        // TODO: Should probably send the actual TechEmpower quest here
+        public static readonly byte[] s_requestMessage = new byte[848];
 
         public const int s_expectedReadSize = 1568;
 
-        public const int s_connectionCount = 512;
-
         class Connection
         {
-            private SocketAsyncEventArgs _connectEventArgs;
-            private SocketAsyncEventArgs _sendEventArgs;
-            private SocketAsyncEventArgs _receiveEventArgs;
+            private readonly Socket _socket;
+
+            private readonly SocketAsyncEventArgs _sendEventArgs;
+            private readonly SocketAsyncEventArgs _receiveEventArgs;
             private int _bytesReceived;
 
-            private Socket _socket;
-
-            public Connection()
+            public Connection(Socket socket)
             {
-                _connectEventArgs = new SocketAsyncEventArgs();
-                _connectEventArgs.RemoteEndPoint = new IPEndPoint(IPAddress.Loopback, 5000);
-                _connectEventArgs.Completed += OnConnect;
+                _socket = socket;
+                _socket.NoDelay = true;
 
                 _sendEventArgs = new SocketAsyncEventArgs();
                 _sendEventArgs.SetBuffer(s_requestMessage, 0, s_requestMessage.Length);
@@ -43,26 +41,6 @@ namespace Client
 
             public void Run()
             {
-                bool pending = Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, _connectEventArgs);
-                if (!pending)
-                    OnConnect(null, _connectEventArgs);
-            }
-
-            private void OnConnect(object sender, SocketAsyncEventArgs e)
-            {
-                if (e.SocketError != SocketError.Success)
-                {
-                    throw new Exception("connect failed");
-                }
-
-                if (s_trace)
-                {
-                    Console.WriteLine("Connection established");
-                }
-
-                _socket = e.ConnectSocket;
-                _socket.NoDelay = true;
-
                 DoSend();
             }
 
@@ -88,7 +66,6 @@ namespace Client
                 }
 
                 int bytesWritten = e.BytesTransferred;
-
                 if (bytesWritten != s_requestMessage.Length)
                 {
                     throw new Exception(string.Format("unexpected write size, bytesWritten = {0}", bytesWritten));
@@ -122,26 +99,13 @@ namespace Client
             {
                 if (e.SocketError != SocketError.Success)
                 {
-                    if (e.SocketError == SocketError.ConnectionReset)
-                    {
-                        _socket.Dispose();
-                        return;
-                    }
-
                     throw new Exception(string.Format("Receive failed, error = {0}", e.SocketError));
                 }
 
                 int bytesRead = e.BytesTransferred;
-
                 if (bytesRead == 0)
                 {
-                    if (s_trace)
-                    {
-                        Console.WriteLine("Connection closed by server");
-                    }
-
-                    _socket.Dispose();
-                    return;
+                    throw new Exception("Connection closed by server");
                 }
 
                 if (s_trace)
@@ -168,29 +132,83 @@ namespace Client
             }
         }
 
-        private static void HandleConnection(object state)
+        private static void HandleConnection(Socket socket)
         {
-            var c = new Connection();
+            var c = new Connection(socket);
             c.Run();
-        }
-
-        private static void QueueConnectionHandler()
-        {
-            ThreadPool.QueueUserWorkItem(HandleConnection);
         }
 
         private static void Start()
         {
+            Console.WriteLine("Establishing {0} connections...", s_connectionCount);
+
             for (int i = 0; i < s_connectionCount; i++)
-                QueueConnectionHandler();
+            {
+                // Do sync connect for simplicity
+                Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                socket.Connect(new IPEndPoint(IPAddress.Loopback, 5000));
+
+                Console.WriteLine("Connection #{0} established", (i+1));
+
+                Task.Run(() => HandleConnection(socket));
+            }
+
+            Console.WriteLine("All connections established, client running");
+            Console.ReadLine();
+        }
+
+        private static void PrintUsage()
+        {
+            Console.WriteLine("Usage: client [-c <value>] [-t]");
+            Console.WriteLine("    -c <value>     Set connection count");
+            Console.WriteLine("    -t             Enable trace output");
+        }
+
+        private static bool ParseArgs(string[] args)
+        {
+            int i = 0;
+            while (i < args.Length)
+            {
+                if (args[i] == "-c")
+                {
+                    i++;
+                    if (i == args.Length)
+                    {
+                        Console.WriteLine("Missing value for parameter");
+                        PrintUsage();
+                        return false;
+                    }
+
+                    if (!int.TryParse(args[i], out s_connectionCount))
+                    {
+                        Console.WriteLine("Could not parse parameter value {0}", args[i]);
+                        PrintUsage();
+                        return false;
+                    }
+                }
+                else if (args[i] == "-t")
+                {
+                    s_trace = true;
+                }
+                else
+                {
+                    Console.WriteLine("Unknown parameter {0}", args[i]);
+                    PrintUsage();
+                    return false;
+                }
+
+                i++;
+            }
+
+            return true;
         }
 
         public static void Main(string[] args)
         {
-            Start();
+            if (!ParseArgs(args))
+                return;
 
-            Console.WriteLine("Client Running");
-            Console.ReadLine();
+            Start();
         }
     }
 }
