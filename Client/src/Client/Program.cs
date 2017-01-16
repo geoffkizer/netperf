@@ -11,6 +11,7 @@ namespace Client
         // Command line settable parameters
         public static int s_connectionCount = 512;
         public static bool s_trace = false;
+        public static int s_duration = -1;  // Duration to run, in seconds.  -1 = forever.
 
         // TODO: Should probably send the actual TechEmpower quest here
         public static readonly byte[] s_requestMessage = new byte[848];
@@ -24,6 +25,7 @@ namespace Client
             private readonly SocketAsyncEventArgs _sendEventArgs;
             private readonly SocketAsyncEventArgs _receiveEventArgs;
             private int _bytesReceived;
+            private int _requestsProcessed = 0;
 
             public Connection(Socket socket)
             {
@@ -43,6 +45,8 @@ namespace Client
             {
                 DoSend();
             }
+
+            public int RequestsProcessed => _requestsProcessed;
 
             private void DoSend()
             {
@@ -113,6 +117,8 @@ namespace Client
                     Console.WriteLine("Receive complete, bytesRead = {0}", bytesRead);
                 }
 
+                _requestsProcessed++;
+
                 _bytesReceived += bytesRead;
 
                 if (_bytesReceived > s_expectedReadSize)
@@ -142,6 +148,8 @@ namespace Client
         {
             Console.WriteLine("Establishing {0} connections...", s_connectionCount);
 
+            Connection[] connections = new Connection[s_connectionCount];
+
             for (int i = 0; i < s_connectionCount; i++)
             {
                 // Do sync connect for simplicity
@@ -150,17 +158,48 @@ namespace Client
 
                 Console.WriteLine("Connection #{0} established", (i+1));
 
-                Task.Run(() => HandleConnection(socket));
+                connections[i] = new Connection(socket);
             }
 
-            Console.WriteLine("All connections established, client running");
-            Console.ReadLine();
+            Console.WriteLine("All connections established");
+
+            for (int i = 0; i < s_connectionCount; i++)
+            {
+                Connection c = connections[i];
+                Task.Run(() => c.Run());
+            }
+
+            if (s_duration != -1)
+            {
+                Console.WriteLine("Client running for {0} seconds", s_duration);
+
+                int totalRequests = 0;
+
+                // Let it run the specified amount
+                Thread.Sleep(s_duration * 1000);
+
+                // Accumulate total # of requests processed (approximately)
+                for (int i = 0; i < s_connectionCount; i++)
+                {
+                    totalRequests += connections[i].RequestsProcessed;
+                }
+
+                Console.WriteLine("Processed {0} requests in {1} seconds", totalRequests, s_duration);
+                Console.WriteLine("Requests per second: {0:F1}", ((double)totalRequests) / s_duration);
+            }
+            else
+            {
+                Console.WriteLine("Client running");
+                Console.WriteLine("Press any key to exit");
+                Console.ReadLine();
+            }
         }
 
         private static void PrintUsage()
         {
-            Console.WriteLine("Usage: client [-c <value>] [-t]");
+            Console.WriteLine("Usage: client [-c <value>] [-d <value>] [-t]");
             Console.WriteLine("    -c <value>     Set connection count");
+            Console.WriteLine("    -d <value>     Duration to run, in seconds. Default is run forever.");
             Console.WriteLine("    -t             Enable trace output");
         }
 
@@ -180,6 +219,23 @@ namespace Client
                     }
 
                     if (!int.TryParse(args[i], out s_connectionCount))
+                    {
+                        Console.WriteLine("Could not parse parameter value {0}", args[i]);
+                        PrintUsage();
+                        return false;
+                    }
+                }
+                if (args[i] == "-d")
+                {
+                    i++;
+                    if (i == args.Length)
+                    {
+                        Console.WriteLine("Missing value for parameter");
+                        PrintUsage();
+                        return false;
+                    }
+
+                    if (!int.TryParse(args[i], out s_duration))
                     {
                         Console.WriteLine("Could not parse parameter value {0}", args[i]);
                         PrintUsage();
