@@ -40,6 +40,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
         // (Try to) validate message length
         ByteBuf buf = (ByteBuf)msg;
         
+        System.out.println("Read bytes: " + buf.readableBytes());
+
         _bytesRead += buf.readableBytes();
 
         // Release the message
