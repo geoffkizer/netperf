@@ -48,6 +48,11 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
         if (_bytesRead < s_expectedReadSize)
             return;
 
+        if (_bytesRead > s_expectedReadSize)
+        {
+            System.out.println("holy shit, _bytesRead = " + _bytesRead);
+        }
+
         _bytesRead = 0;
 
         // Write the response
