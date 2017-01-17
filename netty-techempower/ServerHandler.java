@@ -46,7 +46,10 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
         buf.release();
 
         if (_bytesRead < s_expectedReadSize)
+        {
+            System.out.println("_bytesRead was less than expected: " + _bytesRead);
             return;
+        }
 
         if (_bytesRead > s_expectedReadSize)
         {
