@@ -33,23 +33,26 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n")
             .getBytes(UTF_8);
 
+    int _bytesRead = 0;
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) { // (2)
-        // I'd like to validate msg length, but not sure how to do that
+        // (Try to) validate message length
+        ByteBuf buf = (ByteBuf)msg;
+        
+        _bytesRead += buf.readableBytes();
 
-//        System.out.println("in channelRead");
+        // Release the message
+        buf.release();
+
+        if (_bytesRead < s_expectedReadSize)
+            return;
+
+        _bytesRead = 0;
 
         // Write the response
-//        ctx.write(s_responseMessage); // (1)
         ctx.write(wrappedBuffer(s_responseMessage)); // (1)
         ctx.flush(); // (2)
-
-//        System.out.println("message written in channelRead");
-    
-        // Release the message
-        ((ByteBuf) msg).release();
-
-//        System.out.println("exiting channelRead");
     }
 
     @Override
