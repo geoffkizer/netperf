@@ -12,6 +12,8 @@ namespace Client
         public static int s_connectionCount = 512;
         public static bool s_trace = false;
         public static int s_duration = -1;  // Duration to run, in seconds.  -1 = forever.
+        public static IPAddress s_ipAddress = IPAddress.Loopback;
+        public static int s_port = 5000;
 
         // TODO: Should probably send the actual TechEmpower quest here
         public static readonly byte[] s_requestMessage = new byte[848];
@@ -154,9 +156,7 @@ namespace Client
             {
                 // Do sync connect for simplicity
                 Socket socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                socket.Connect(new IPEndPoint(IPAddress.Loopback, 5000));
-
-                Console.WriteLine("Connection #{0} established", (i+1));
+                socket.Connect(new IPEndPoint(s_ipAddress, s_port));
 
                 connections[i] = new Connection(socket);
             }
@@ -197,7 +197,7 @@ namespace Client
 
         private static void PrintUsage()
         {
-            Console.WriteLine("Usage: client [-c <value>] [-d <value>] [-t]");
+            Console.WriteLine("Usage: client [serverIP:Port] [-c <value>] [-d <value>] [-t]");
             Console.WriteLine("    -c <value>     Set connection count");
             Console.WriteLine("    -d <value>     Duration to run, in seconds. Default is run forever.");
             Console.WriteLine("    -t             Enable trace output");
@@ -208,7 +208,32 @@ namespace Client
             int i = 0;
             while (i < args.Length)
             {
-                if (args[i] == "-c")
+                if (args[i][0] != '-')
+                {
+                    // Parse as IP address/port
+                    string[] parts = args[i].Split(':');
+                    if (parts.Length != 2)
+                    {
+                        Console.WriteLine("Could not parse ip address/port");
+                        PrintUsage();
+                        return false;
+                    }
+
+                    if (!IPAddress.TryParse(parts[0], out s_ipAddress))
+                    {
+                        Console.WriteLine("Could not parse ip address");
+                        PrintUsage();
+                        return false;
+                    }
+
+                    if (!int.TryParse(parts[1], out s_port))
+                    {
+                        Console.WriteLine("Could not parse port");
+                        PrintUsage();
+                        return false;
+                    }
+                }
+                else if (args[i] == "-c")
                 {
                     i++;
                     if (i == args.Length)
@@ -225,7 +250,7 @@ namespace Client
                         return false;
                     }
                 }
-                if (args[i] == "-d")
+                else if (args[i] == "-d")
                 {
                     i++;
                     if (i == args.Length)
