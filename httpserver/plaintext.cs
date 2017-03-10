@@ -8,7 +8,7 @@ class Test
 {
     public static void Main()
     {
-        HttpServer server = new HttpServer(new IPEndPoint(IPAddress.Loopback, 5000), new PlaintextHandler());
+        HttpServer server = new HttpServer(new IPEndPoint(IPAddress.Any, 5000), new PlaintextHandler());
         server.Run();
 
         Console.WriteLine("Running");
