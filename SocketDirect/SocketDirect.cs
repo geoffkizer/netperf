@@ -99,7 +99,8 @@ namespace SocketEvents
                         return;
                     }
 
-                    throw new Exception(string.Format("read failed, error = {0}", socketError));
+//                    throw new Exception(string.Format("read failed, error = {0}", socketError));
+                    return;
                 }
 
                 if (bytesRead == 0)
