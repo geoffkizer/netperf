@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace SocketEvents
 {
@@ -30,66 +31,76 @@ namespace SocketEvents
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
+        public static readonly GCHandle s_responseMessageGCHandle = GCHandle.Alloc(s_responseMessage, GCHandleType.Pinned);
+        public static readonly unsafe byte* s_responseMessagePtr = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(s_responseMessage, 0);
+
         public const int s_expectedReadSize = 848;
 
         private static SocketAsyncEventArgs s_acceptEventArgs;
 
         class Connection
         {
-            private SocketAsyncEventArgs _readEventArgs;
-            private SocketAsyncEventArgs _writeEventArgs;
+            private IntPtr _socketHandle;
+            private byte[] _readBuffer;
 
-            private Socket _socket;
-            // buffer?
+            private GCHandle _readBufferGCHandle;
+
+            private SocketDirect.OverlappedHandle _receiveOverlapped;
+            private SocketDirect.OverlappedHandle _sendOverlapped;
 
             public Connection(Socket socket)
             {
-                _socket = socket;
+                _socketHandle = socket.Handle;
 
-                _readEventArgs = new SocketAsyncEventArgs();
-                _readEventArgs.SetBuffer(new byte[4096], 0, 4096);
-                _readEventArgs.Completed += OnRead;
+                // Alloc and pin read buffer
+                _readBuffer = new byte[4096];
+                _readBufferGCHandle = GCHandle.Alloc(_readBuffer, GCHandleType.Pinned);
 
-                _writeEventArgs = new SocketAsyncEventArgs();
-                _writeEventArgs.SetBuffer(s_responseMessage, 0, s_responseMessage.Length);
-                _writeEventArgs.Completed += OnWrite;
+                // Allocate overlapped structures
+                _receiveOverlapped = new SocketDirect.OverlappedHandle(OnRead);
+                _sendOverlapped = new SocketDirect.OverlappedHandle(OnWrite);
             }
 
-            public void Run()
+            public unsafe void Run()
             {
-                _socket.NoDelay = true;
+                SocketDirect.BindToWin32ThreadPool(_socketHandle);
+                SocketDirect.SetNoDelay(_socketHandle);
 
                 DoRead();
             }
 
-            private void DoRead()
+            private unsafe void DoRead()
             {
-                bool pending = _socket.ReceiveAsync(_readEventArgs);
-                if (!pending)
-                {
-                    if (s_trace)
-                    {
-                        Console.WriteLine("Read completed synchronously");
-                    }
+                int bytesTransferred;
+                SocketFlags socketFlags = SocketFlags.None;
+                SocketError socketError = SocketDirect.Receive(
+                    _socketHandle,
+                    (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(_readBuffer, 0),
+                    _readBuffer.Length,
+                    out bytesTransferred,
+                    ref socketFlags,
+                    _receiveOverlapped);
 
-                    OnRead(null, _readEventArgs);
+                if (socketError != SocketError.IOPending)
+                {
+                    OnRead((int)socketError, bytesTransferred);
                 }
             }
 
-            private void OnRead(object sender, SocketAsyncEventArgs e)
+            private unsafe void OnRead(int errorCode, int bytesRead)
             {
-                if (e.SocketError != SocketError.Success)
+                SocketError socketError = (SocketError)errorCode;
+
+                if (socketError != SocketError.Success)
                 {
-                    if (e.SocketError == SocketError.ConnectionReset)
+                    if (socketError == SocketError.ConnectionReset)
                     {
-                        _socket.Dispose();
+                        // TODO: Dispose socket
                         return;
                     }
 
-                    throw new Exception(string.Format("read failed, error = {0}", e.SocketError));
+                    throw new Exception(string.Format("read failed, error = {0}", socketError));
                 }
-
-                int bytesRead = e.BytesTransferred;
 
                 if (bytesRead == 0)
                 {
@@ -97,8 +108,9 @@ namespace SocketEvents
                     {
                         Console.WriteLine("Connection closed by client");
                     }
-
-                    _socket.Dispose();
+                    
+                    // TODO
+//                    _socket.Dispose();
                     return;
                 }
 
@@ -107,33 +119,43 @@ namespace SocketEvents
                     Console.WriteLine("Read complete, bytesRead = {0}", bytesRead);
                 }
 
+#if false
                 if (bytesRead != s_expectedReadSize)
                 {
                     throw new Exception(string.Format("unexpected read size, bytesRead = {0}", bytesRead));
                 }
+#endif
 
                 // Do write now
 
-                bool pending = _socket.SendAsync(_writeEventArgs);
-                if (!pending)
+                int bytesTransferred;
+                SocketFlags socketFlags = SocketFlags.None;
+                socketError = SocketDirect.Send(
+                    _socketHandle,
+                    s_responseMessagePtr,
+                    s_responseMessage.Length,
+                    out bytesTransferred,
+                    socketFlags,
+                    _sendOverlapped);
+                if (socketError == SocketError.Success)
                 {
                     if (s_trace)
                     {
                         Console.WriteLine("Write completed synchronously");
                     }
 
-                    OnWrite(null, _writeEventArgs);
+                    OnWrite((int)socketError, bytesTransferred);
                 }
             }
 
-            private void OnWrite(object sender, SocketAsyncEventArgs e)
+            private unsafe void OnWrite(int errorCode, int bytesWritten)
             {
-                if (e.SocketError != SocketError.Success)
+                SocketError socketError = (SocketError)errorCode;
+
+                if (socketError != SocketError.Success)
                 {
                     throw new Exception("write failed");
                 }
-
-                int bytesWritten = e.BytesTransferred;
 
                 if (bytesWritten != s_responseMessage.Length)
                 {
@@ -169,6 +191,9 @@ namespace SocketEvents
             }
 
             Socket s = e.AcceptSocket;
+
+            // Clear for next accept
+            e.AcceptSocket = null;
 
             // Spawn another work item to handle next connection
             QueueConnectionHandler();
