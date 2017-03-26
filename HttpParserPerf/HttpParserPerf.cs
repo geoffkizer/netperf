@@ -158,14 +158,14 @@ namespace ConsoleApplication
             Task.WaitAll(tasks);
         }
 
-        private static async Task ExecuteRequestAsync(BufferedStream bufferedStream, IHttpParserHandler handler)
+        private static async Task ExecuteRequestAsync(BufferedStream bufferedStream, HttpParser parser)
         {
             // Send request
             await bufferedStream.WriteAsync(s_requestMessage, 0, s_requestMessage.Length, CancellationToken.None);
             await bufferedStream.FlushAsync(CancellationToken.None);
 
             // Parse response message
-            HttpContentReadStream body = await HttpParser.ParseResponseAndGetBodyAsync(bufferedStream, handler, CancellationToken.None);
+            HttpContentReadStream body = await parser.ParseResponseAndGetBodyAsync(bufferedStream, null, CancellationToken.None);
 
             await body.DrainAsync(CancellationToken.None);
             body.Dispose();
@@ -204,13 +204,13 @@ namespace ConsoleApplication
         {
             NetworkStream stream = await ConnectAsync(_options.Uri.Host, _options.Uri.Port);
             BufferedStream bufferedStream = new BufferedStream(stream);
-            IHttpParserHandler handler = null;      // TODO
+            HttpParser parser = new HttpParser();
 
             long requestId;
             while ((requestId = Interlocked.Increment(ref _requests)) <= _options.Requests)
             {
                 var start = _stopwatch.ElapsedTicks;
-                await ExecuteRequestAsync(bufferedStream, handler);
+                await ExecuteRequestAsync(bufferedStream, parser);
                 var end = _stopwatch.ElapsedTicks;
 
                 Interlocked.Add(ref _ticks, end - start);
