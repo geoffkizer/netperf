@@ -41,6 +41,7 @@ namespace SocketEvents
         class Connection
         {
             private IntPtr _socketHandle;
+            private ThreadPoolBoundHandle _boundHandle;
             private byte[] _readBuffer;
 
             private GCHandle _readBufferGCHandle;
@@ -56,14 +57,15 @@ namespace SocketEvents
                 _readBuffer = new byte[4096];
                 _readBufferGCHandle = GCHandle.Alloc(_readBuffer, GCHandleType.Pinned);
 
+                _boundHandle = SocketDirect.BindToClrThreadPool(socket);
+
                 // Allocate overlapped structures
-                _receiveOverlapped = new SocketDirect.OverlappedHandle(OnRead);
-                _sendOverlapped = new SocketDirect.OverlappedHandle(OnWrite);
+                _receiveOverlapped = new SocketDirect.OverlappedHandle(_boundHandle, OnRead);
+                _sendOverlapped = new SocketDirect.OverlappedHandle(_boundHandle, OnWrite);
             }
 
             public unsafe void Run()
             {
-                SocketDirect.BindToWin32ThreadPool(_socketHandle);
                 SocketDirect.SetNoDelay(_socketHandle);
 
                 DoRead();
@@ -74,7 +76,7 @@ namespace SocketEvents
                 int bytesTransferred;
                 SocketFlags socketFlags = SocketFlags.None;
                 SocketError socketError = SocketDirect.Receive(
-                    _socketHandle,
+                    _boundHandle,
                     (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(_readBuffer, 0),
                     _readBuffer.Length,
                     out bytesTransferred,
@@ -132,7 +134,7 @@ namespace SocketEvents
                 int bytesTransferred;
                 SocketFlags socketFlags = SocketFlags.None;
                 socketError = SocketDirect.Send(
-                    _socketHandle,
+                    _boundHandle,
                     s_responseMessagePtr,
                     s_responseMessage.Length,
                     out bytesTransferred,
