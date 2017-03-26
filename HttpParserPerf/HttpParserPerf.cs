@@ -160,19 +160,12 @@ namespace ConsoleApplication
 
         private static async Task ExecuteRequestAsync(BufferedStream bufferedStream, IHttpParserHandler handler)
         {
-            Debugger.Break();
-
-            Console.WriteLine("About to send request");
-            
             // Send request
             await bufferedStream.WriteAsync(s_requestMessage, 0, s_requestMessage.Length, CancellationToken.None);
-
-            Console.WriteLine("request sent, about to parse response");
+            await bufferedStream.FlushAsync(CancellationToken.None);
 
             // Parse response message
             HttpContentReadStream body = await HttpParser.ParseResponseAndGetBodyAsync(bufferedStream, handler, CancellationToken.None);
-
-            Console.WriteLine("response parsed, about to drain");
 
             await body.DrainAsync(CancellationToken.None);
             body.Dispose();
