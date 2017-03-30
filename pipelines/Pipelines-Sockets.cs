@@ -13,7 +13,7 @@ namespace SocketEvents
     {
         public static SocketListener s_listener;
 
-        public const bool s_trace = true;
+        public const bool s_trace = false;
 
         public static readonly Buffer<byte> s_responseMessage = Encoding.UTF8.GetBytes(
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
@@ -54,7 +54,8 @@ namespace SocketEvents
                         {
                             Console.WriteLine("Connection closed by client");
                         }
-                        
+
+                        connection.Input.Advance(consumed, consumed);
                         break;
                     }
 
