@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -100,7 +101,7 @@ namespace SocketAwait
         private static void HandleConnection(Socket s)
         {
             s.NoDelay = true;
-            Stream stream = s.GetStream();
+            Stream stream = new NetworkStream(s);
 
             // TODO: SSL
 
