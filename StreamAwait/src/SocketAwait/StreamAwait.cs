@@ -151,6 +151,7 @@ namespace SocketAwait
                         if (bytesParsed == 0)
                         {
                             // Need to do another read
+                            readOffset = 0;
                             try
                             {
                                 readLength = await _stream.ReadAsync(_readBuffer, 0, BufferSize);
@@ -186,6 +187,7 @@ namespace SocketAwait
                         {
                             // Processed one request
                             readOffset += bytesParsed;
+                            readLength -= bytesParsed;
                             requestCount++;
                         }
                     }
