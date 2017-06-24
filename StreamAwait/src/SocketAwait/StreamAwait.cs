@@ -35,12 +35,95 @@ namespace SocketAwait
 
 //        public const int s_expectedReadSize = 848;
 
+        struct HttpRequestParseState
+        {
+            const byte CR = (byte)'\r';
+            const byte LF = (byte)'\n';
+
+            enum State
+            {
+                None = 0,
+                SawCR = 1,
+                SawCRLF = 2,
+                SawCRLFCR = 3
+            }
+
+            private State _state;
+
+            // Returns 0 if more data needed, and updates state
+            // Returns positive int to indicate bytes consumed, and sets state to None
+            public int TryParse(byte[] buffer, int offset, int length)
+            {
+                int i = offset;
+                int end = offset + length;
+
+                // Dispatch to appropriate place in state machine
+                switch (_state)
+                {
+                    case State.None:
+                        while (i < end)
+                        {
+                            if (buffer[i++] == CR)
+                                goto case State.SawCR;
+                        }
+
+                        _state = State.None;
+                        return 0;
+
+                    case State.SawCR:
+                        if (i == end)
+                        {
+                            _state = State.SawCR;
+                            return 0;
+                        }
+
+                        if (buffer[i++] == LF)
+                            goto case State.SawCRLF;
+                        else
+                            goto case State.None;
+
+                    case State.SawCRLF:
+                        if (i == end)
+                        {
+                            _state = State.SawCRLF;
+                            return 0;
+                        }
+
+                        if (buffer[i++] == CR)
+                            goto case State.SawCRLFCR;
+                        else
+                            goto case State.None;
+
+                    case State.SawCRLFCR:
+                        if (i == end)
+                        {
+                            _state = State.SawCRLFCR;
+                            return 0;
+                        }
+
+                        if (buffer[i++] == LF)
+                        {
+                            // Successfully found CRLFCRLF
+                            // Return count of bytes consumed
+                            _state = State.None;
+                            return i - offset;
+                        }
+                        else
+                            goto case State.None;
+
+                    default:
+                        throw new InvalidOperationException("invalid parse state");
+                }
+            }
+        }
+
         sealed class Connection
         {
             private const int BufferSize = 4096;
 
             private Stream _stream;
             private byte[] _readBuffer = new byte[BufferSize];
+
 
             public Connection(Stream stream)
             {
@@ -54,40 +137,60 @@ namespace SocketAwait
                     Console.WriteLine("Connection accepted");
                 }
 
+                // Loop, receiving requests and sending responses
+                int readOffset = 0;
+                int readLength = 0;
                 while (true)
                 {
-                    int bytesRead;
-                    try
+                    // Receive 16 requests
+                    var parseState = new HttpRequestParseState();
+                    int requestCount = 0;
+                    while (requestCount < 16)
                     {
-                        bytesRead = await _stream.ReadAsync(_readBuffer, 0, BufferSize);
-                    }
-                    catch (SocketException e)
-                    {
-                        if (e.SocketErrorCode == SocketError.ConnectionReset)
+                        int bytesParsed = parseState.TryParse(_readBuffer, readOffset, readLength);
+                        if (bytesParsed == 0)
                         {
-                            _stream.Dispose();
-                            return;
+                            // Need to do another read
+                            try
+                            {
+                                readLength = await _stream.ReadAsync(_readBuffer, 0, BufferSize);
+                            }
+                            catch (SocketException e)
+                            {
+                                if (e.SocketErrorCode == SocketError.ConnectionReset)
+                                {
+                                    _stream.Dispose();
+                                    return;
+                                }
+
+                                throw;
+                            }
+
+                            if (readLength == 0)
+                            {
+                                if (s_trace)
+                                {
+                                    Console.WriteLine("Connection closed by client");
+                                }
+
+                                _stream.Dispose();
+                                break;
+                            }
+
+                            if (s_trace)
+                            {
+                                Console.WriteLine("Read complete, bytesRead = {0}", readLength);
+                            }
                         }
-
-                        throw;
-                    }
-
-                    if (bytesRead == 0)
-                    {
-                        if (s_trace)
+                        else
                         {
-                            Console.WriteLine("Connection closed by client");
+                            // Processed one request
+                            readOffset += bytesParsed;
+                            requestCount++;
                         }
-
-                        _stream.Dispose();
-                        break;
                     }
 
-                    if (s_trace)
-                    {
-                        Console.WriteLine("Read complete, bytesRead = {0}", bytesRead);
-                    }
-
+                    // Send 16 responses (hardcoded)
                     await _stream.WriteAsync(s_responseMessage, 0, s_responseMessage.Length);
 
                     if (s_trace)
