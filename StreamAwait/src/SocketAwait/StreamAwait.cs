@@ -156,15 +156,10 @@ namespace SocketAwait
                             {
                                 readLength = await _stream.ReadAsync(_readBuffer, 0, BufferSize);
                             }
-                            catch (SocketException e)
+                            catch (IOException)
                             {
-                                if (e.SocketErrorCode == SocketError.ConnectionReset)
-                                {
-                                    _stream.Dispose();
-                                    return;
-                                }
-
-                                throw;
+                                _stream.Dispose();
+                                return;
                             }
 
                             if (readLength == 0)
