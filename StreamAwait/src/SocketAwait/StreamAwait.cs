@@ -15,6 +15,7 @@ namespace SocketAwait
         public static Socket s_listenSocket;
 
         public const bool s_trace = false;
+        public const bool s_traceStream = false;
         public const bool s_useSsl = false;
 
         public static X509Certificate2 s_cert = null;
@@ -38,6 +39,58 @@ namespace SocketAwait
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
 //        public const int s_expectedReadSize = 848;
+
+        public sealed class TraceStream : Stream
+        {
+            Stream _innerStream;
+
+            public TraceStream(Stream stream)
+            {
+                _innerStream = stream;
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                    _innerStream.Dispose();
+            }
+
+            public override bool CanRead => _innerStream.CanRead;
+            public override bool CanWrite => _innerStream.CanWrite;
+            public override bool CanSeek => _innerStream.CanSeek;
+
+            public override async Task<int> ReadAsync(
+                byte[] buffer,
+                int offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                var result = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+
+                Console.WriteLine($"TraceStream: bytes read = {result}");
+
+                return result;
+            }
+
+            public override Task WriteAsync(
+                byte[] buffer,
+                int offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                Console.WriteLine($"TraceStream: bytes written = {count}");
+
+                return _innerStream.WriteAsync(buffer, offset, count, cancellationToken);
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) => _innerStream.Read(buffer, offset, count);
+            public override void Flush() => _innerStream.Flush();
+            public override long Position { get { return _innerStream.Position; } set { _innerStream.Position = value; } }
+            public override void Write(byte[] buffer, int offset, int count) => _innerStream.Write(buffer, offset, count);
+            public override long Length => _innerStream.Length;
+            public override void SetLength(long value) => _innerStream.SetLength(value);
+            public override long Seek(long offset, SeekOrigin origin) => _innerStream.Seek(offset, origin);
+        }
 
         struct HttpRequestParseState
         {
@@ -206,6 +259,11 @@ namespace SocketAwait
         {
             s.NoDelay = true;
             Stream stream = new NetworkStream(s);
+
+            if (s_traceStream)
+            {
+                stream = new TraceStream(stream);
+            }
 
             if (s_useSsl)
             {

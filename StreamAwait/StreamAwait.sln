@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{958E31AD-3CF
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FCCF605E-5B1F-4CFE-AB79-4E2EFAB82143}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SocketAwait", "src\SocketAwait\SocketAwait.csproj", "{915C076B-7FB1-41AA-AB95-D8BA5F6F7C4B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StreamAwait", "src\SocketAwait\StreamAwait.csproj", "{915C076B-7FB1-41AA-AB95-D8BA5F6F7C4B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
