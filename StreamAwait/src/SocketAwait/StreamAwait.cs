@@ -174,7 +174,7 @@ namespace SocketAwait
                                 }
 
                                 _stream.Dispose();
-                                break;
+                                return;
                             }
 
                             if (s_trace)
