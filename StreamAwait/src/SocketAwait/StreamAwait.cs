@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -14,6 +15,8 @@ namespace SocketAwait
 
         public const bool s_trace = false;
         public const bool s_useSsl = false;
+
+        public static X509Certificate2 s_cert = null;
 
         public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
@@ -198,12 +201,18 @@ namespace SocketAwait
             }
         }
 
-        private static void HandleConnection(Socket s)
+        private static async void HandleConnection(Socket s)
         {
             s.NoDelay = true;
             Stream stream = new NetworkStream(s);
 
-            // TODO: SSL
+            if (s_useSsl)
+            {
+                var sslStream = new SslStream(stream);
+                await sslStream.AuthenticateAsServerAsync(s_cert);
+
+                stream = sslStream;
+            }
 
             var c = new Connection(stream);
             c.Run();
@@ -227,8 +236,27 @@ namespace SocketAwait
             Task.Run(() => AcceptConnections());
         }
 
+        private static X509Certificate2 LoadCert()
+        {
+            var certCollection = new X509Certificate2Collection();
+            certCollection.Import("contoso.com.pfx", "testcertificate", X509KeyStorageFlags.DefaultKeySet);
+
+            X509Certificate2 certificate = null;
+            foreach (X509Certificate2 c in certCollection)
+            {
+                if (certificate == null && c.HasPrivateKey) certificate = c;
+                else c.Dispose();
+            }
+            return certificate;
+        }
+
         public static void Main(string[] args)
         {
+            if (s_useSsl)
+            {
+                s_cert = LoadCert();
+            }
+
             Start();
 
             Console.WriteLine("Server Running");
