@@ -209,10 +209,20 @@ namespace SocketAwait
 
             if (s_useSsl)
             {
-                var sslStream = new SslStream(stream);
-                await sslStream.AuthenticateAsServerAsync(s_cert);
+                try
+                {
+                    var sslStream = new SslStream(stream);
+                    await sslStream.AuthenticateAsServerAsync(s_cert);
 
-                stream = sslStream;
+                    stream = sslStream;
+                }
+                catch (IOException e)
+                {
+                    if (s_trace)
+                    {
+                        Console.WriteLine($"Exception trying to establish SSL connection:\n{e}");
+                    }
+                }
             }
 
             var c = new Connection(stream);
