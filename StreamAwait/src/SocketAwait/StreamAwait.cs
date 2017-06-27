@@ -38,7 +38,7 @@ namespace SocketAwait
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
             "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
-//        public const int s_expectedReadSize = 848;
+        public const int s_expectedReadSize = 2624;
 
         public sealed class TraceStream : Stream
         {
@@ -187,7 +187,7 @@ namespace SocketAwait
                 _stream = stream;
             }
 
-            public async void Run()
+            public async void Run_FakeParse()
             {
                 if (s_trace)
                 {
@@ -242,6 +242,64 @@ namespace SocketAwait
                             readLength -= bytesParsed;
                             requestCount++;
                         }
+                    }
+
+                    // Send 16 responses (hardcoded)
+                    await _stream.WriteAsync(s_responseMessage, 0, s_responseMessage.Length);
+
+                    if (s_trace)
+                    {
+                        Console.WriteLine("Write complete");
+                    }
+                }
+            }
+
+            public async void Run()
+            {
+                if (s_trace)
+                {
+                    Console.WriteLine("Connection accepted");
+                }
+
+                // Loop, receiving requests and sending responses
+                while (true)
+                {
+                    // Receive 16 requests
+                    int bytesConsumed = 0;
+                    while (bytesConsumed < s_expectedReadSize)
+                    {
+                        try
+                        {
+                            int bytesRead = await _stream.ReadAsync(_readBuffer, 0, BufferSize);
+                            if (bytesRead == 0)
+                            {
+                                if (s_trace)
+                                {
+                                    Console.WriteLine("Connection closed by client");
+                                }
+
+                                _stream.Dispose();
+                                return;
+                            }
+
+                            if (s_trace)
+                            {
+                                Console.WriteLine("Read complete, bytesRead = {0}", bytesRead);
+                            }
+
+                            bytesConsumed += bytesRead;
+                        }
+                        catch (IOException)
+                        {
+                            _stream.Dispose();
+                            return;
+                        }
+                    }
+
+                    if (bytesConsumed != s_expectedReadSize)
+                    {
+                        // Read too many bytes??
+                        throw new Exception($"Read more than expected size, bytesConsumed={bytesConsumed}");
                     }
 
                     // Send 16 responses (hardcoded)
