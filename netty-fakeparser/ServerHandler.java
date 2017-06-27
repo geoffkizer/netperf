@@ -69,12 +69,12 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
         // (Try to) validate message length
         ByteBuf buf = (ByteBuf)msg;
         
-        System.out.println("Read bytes: " + buf.readableBytes());
+//        System.out.println("Read bytes: " + buf.readableBytes());
 
         if (currentBuf != null)
         {
             // Combine with leftovers from previous
-            System.out.println("Previous bytes: " + currentBuf.readableBytes());
+//            System.out.println("Previous bytes: " + currentBuf.readableBytes());
             buf = wrappedBuffer(currentBuf, buf);
         }
 
@@ -84,7 +84,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
             {
                 if (parseHttpRequest(buf))
                 {
-                    System.out.println("Parsed one http request, bytes remaining = " + buf.readableBytes());
+//                    System.out.println("Parsed one http request, bytes remaining = " + buf.readableBytes());
                     requestCount++;
                 }
                 else
