@@ -36,7 +36,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
     int _bytesRead = 0;
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) { // (2)
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception { // (2)
         // (Try to) validate message length
         ByteBuf buf = (ByteBuf)msg;
         
