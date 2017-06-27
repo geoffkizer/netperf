@@ -55,7 +55,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
 
         if (_bytesRead > s_expectedReadSize)
         {
-	    throw new Exception("holy shit, _bytesRead = " + _bytesRead");
+	    throw new Exception("holy shit, _bytesRead = " + _bytesRead);
         }
 
         _bytesRead = 0;
