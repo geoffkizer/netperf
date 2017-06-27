@@ -107,6 +107,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
             // Write the response
             ctx.write(wrappedBuffer(s_responseMessage)); // (1)
             ctx.flush(); // (2)
+
+            requestCount = 0;
         }
     }
 
