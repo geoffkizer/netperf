@@ -58,6 +58,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
                 (buf.readByte() == (byte)'\r') &&
                 (buf.readByte() == (byte)'\n'))
             {
+                buf.discardReadBytes();
                 return true;
             }
         }
@@ -83,6 +84,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
             {
                 if (parseHttpRequest(buf))
                 {
+                    System.out.println("Parsed one http request, bytes remaining = " + currentBuf.readableBytes());
                     requestCount++;
                 }
                 else
