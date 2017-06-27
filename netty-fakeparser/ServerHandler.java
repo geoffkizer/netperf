@@ -84,7 +84,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
             {
                 if (parseHttpRequest(buf))
                 {
-                    System.out.println("Parsed one http request, bytes remaining = " + currentBuf.readableBytes());
+                    System.out.println("Parsed one http request, bytes remaining = " + buf.readableBytes());
                     requestCount++;
                 }
                 else
