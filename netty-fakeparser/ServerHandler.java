@@ -37,7 +37,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
     int requestCount = 0;
     ByteBuf currentBuf = null;
 
-    private boolean parseHttpRequest(ByteBuf buf)
+    private final boolean parseHttpRequest(ByteBuf buf)
     {
         while (true)
         {
@@ -58,7 +58,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
                 (buf.readByte() == (byte)'\r') &&
                 (buf.readByte() == (byte)'\n'))
             {
-                buf.discardReadBytes();
+//                buf.discardReadBytes();
                 return true;
             }
         }
