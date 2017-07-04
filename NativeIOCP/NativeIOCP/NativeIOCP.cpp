@@ -10,13 +10,13 @@ void QueueConnectionHandler();
 
 SOCKET s_listenSocket = INVALID_SOCKET;
 
-#define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
+#define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
 #define PIPELINED_RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE
 
 const char s_responseMessage[] = PIPELINED_RESPONSE;
 const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude trailing null
 
-const int s_expectedReadSize = 848;
+const int s_expectedReadSize = 2624;
 
 // Cmd line arguments
 bool s_trace = false;
