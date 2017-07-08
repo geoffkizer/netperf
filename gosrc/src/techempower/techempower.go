@@ -98,6 +98,7 @@ func create_cert() (tlsCert tls.Certificate, err error) {
 					Country : []string{"Earth"},
 					Organization: []string{"Mother Nature"},
 			},
+	        SignatureAlgorithm : x509.SHA256WithRSA,
 			NotBefore : time.Now(),
 			NotAfter : time.Now().AddDate(5,5,5),
 			// see http://golang.org/pkg/crypto/x509/#KeyUsage
