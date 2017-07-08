@@ -5,10 +5,14 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 
 /**
  * Discards any incoming data.
@@ -17,11 +21,18 @@ public class Server {
 
     private int port;
 
+    private static final boolean s_doSsl = true;
+
+
     public Server(int port) {
         this.port = port;
     }
 
     public void run() throws Exception {
+        // Some certificate stuff
+        SelfSignedCertificate ssc = new SelfSignedCertificate();
+        SslContext sslCtx = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
+
         EventLoopGroup bossGroup = new NioEventLoopGroup(); // (1)
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
@@ -31,7 +42,11 @@ public class Server {
              .childHandler(new ChannelInitializer<SocketChannel>() { // (4)
                  @Override
                  public void initChannel(SocketChannel ch) throws Exception {
-                     ch.pipeline().addLast(new ServerHandler());
+                     ChannelPipeline p = ch.pipeline();
+                     if (s_doSsl) {
+                         p.addLast("tls", sslCtx.newHandler(ch.alloc()));
+                     }
+                     p.addLast(new ServerHandler());
                  }
              })
              .option(ChannelOption.SO_BACKLOG, 128)          // (5)
