@@ -13,6 +13,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+import io.netty.buffer.PooledByteBufAllocator;
 
 /**
  * Discards any incoming data.
@@ -50,7 +51,8 @@ public class Server {
                  }
              })
              .option(ChannelOption.SO_BACKLOG, 128)          // (5)
-             .childOption(ChannelOption.SO_KEEPALIVE, true); // (6)
+             .childOption(ChannelOption.SO_KEEPALIVE, true) // (6)
+             .childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true));
 
             // Bind and start to accept incoming connections.
             ChannelFuture f = b.bind(port).sync(); // (7)
