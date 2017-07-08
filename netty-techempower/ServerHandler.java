@@ -68,7 +68,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter { // (1)
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) { // (4)
         // Close the connection when an exception is raised.
-        cause.printStackTrace();
+//        cause.printStackTrace();
         ctx.close();
     }
 }
