@@ -56,7 +56,6 @@ private:
 	}
 };
 
-// Inherit from OVERLAPPED so we can cast to/from
 
 class Connection 
 {
@@ -338,8 +337,9 @@ private:
 		// Kick off another async accept
 		DoAccept();
 
-		// TODO: Instantiate connection
-
+		// Handle this connection
+		Connection* c = new Connection(s, _isSsl);
+		c->Run();
 	}
 };
 
