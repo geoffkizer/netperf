@@ -12,11 +12,8 @@ namespace SocketAwait
 {
     public class StreamAwait
     {
-        public static Socket s_listenSocket;
-
         public const bool s_trace = false;
         public const bool s_traceStream = false;
-        public const bool s_useSsl = false;
 
         public static X509Certificate2 s_cert = null;
 
@@ -313,7 +310,7 @@ namespace SocketAwait
             }
         }
 
-        private static async void HandleConnection(Socket s)
+        private static async void HandleConnection(Socket s, bool isSsl)
         {
             s.NoDelay = true;
             Stream stream = new NetworkStream(s);
@@ -323,7 +320,7 @@ namespace SocketAwait
                 stream = new TraceStream(stream);
             }
 
-            if (s_useSsl)
+            if (isSsl)
             {
                 try
                 {
@@ -345,22 +342,32 @@ namespace SocketAwait
             c.Run();
         }
 
-        private static void AcceptConnections()
+        private static void AcceptConnections(Socket listenSocket, bool isSsl)
         {
             while (true)
             {
-                Socket s = s_listenSocket.Accept();
-                Task.Run(() => HandleConnection(s));
+                Socket s = listenSocket.Accept();
+                Task.Run(() => HandleConnection(s, isSsl));
             }
         }
 
         private static void Start()
         {
-            s_listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            s_listenSocket.Bind(new IPEndPoint(IPAddress.Any, 5000));
-            s_listenSocket.Listen(1000);
+            Socket raw = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            raw.Bind(new IPEndPoint(IPAddress.Any, 5000));
+            raw.Listen(1000);
 
-            Task.Run(() => AcceptConnections());
+            Console.WriteLine("Listening on *:5000 (raw)");
+
+            Task.Run(() => AcceptConnections(raw, false));
+
+            Socket ssl = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            ssl.Bind(new IPEndPoint(IPAddress.Any, 5001));
+            ssl.Listen(1000);
+
+            Console.WriteLine("Listening on *:5001 (ssl)");
+            
+            Task.Run(() => AcceptConnections(ssl, true));
         }
 
         private static X509Certificate2 LoadCert()
@@ -379,10 +386,7 @@ namespace SocketAwait
 
         public static void Main(string[] args)
         {
-            if (s_useSsl)
-            {
-                s_cert = LoadCert();
-            }
+            s_cert = LoadCert();
 
             Start();
 
