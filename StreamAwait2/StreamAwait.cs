@@ -329,12 +329,14 @@ namespace SocketAwait
 
                     stream = sslStream;
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
                     if (s_trace)
                     {
                         Console.WriteLine($"Exception trying to establish SSL connection:\n{e}");
                     }
+
+                    return;
                 }
             }
 
