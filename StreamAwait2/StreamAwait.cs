@@ -3,6 +3,7 @@ using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -325,7 +326,7 @@ namespace SocketAwait
                 try
                 {
                     var sslStream = new SslStream(stream);
-                    await sslStream.AuthenticateAsServerAsync(s_cert);
+                    await sslStream.AuthenticateAsServerAsync(s_cert, false, SslProtocols.Tls11 | SslProtocols.Tls12, false);
 
                     stream = sslStream;
                 }
