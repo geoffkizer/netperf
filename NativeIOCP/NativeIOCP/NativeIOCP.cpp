@@ -18,18 +18,17 @@ int s_acceptCount = 1;
 
 // Inherit from OVERLAPPED so we can cast to/from
 
-template <class T> 
 class OverlappedHelper : public OVERLAPPED
 {
 public:
-	typedef void (*OverlappedCallback)(T* target, DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered);
+	typedef void (*OverlappedCallback)(void* target, DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered);
 
 private:
-	T* _target;
+	void* _target;
 	OverlappedCallback _callback;
 
 public:
-	OverlappedHelper(T* target, OverlappedCallback callback) :
+	OverlappedHelper(void* target, OverlappedCallback callback) :
 		_target(target),
 		_callback(callback)
 	{
@@ -78,8 +77,8 @@ private:
 	BOOL _isSsl;
 	int _totalBytesRead;
 
-	OverlappedHelper<Connection> _readHelper;
-	OverlappedHelper<Connection> _writeHelper;
+	OverlappedHelper _readHelper;
+	OverlappedHelper _writeHelper;
 
 	BYTE _readBuffer[4096];
 	//	BYTE _writeBuffer[4096];
@@ -101,7 +100,7 @@ public:
 			printf("Connection::Run called\n");
 		}
 
-		OverlappedHelper<Connection>::BindSocket(_socket);
+		OverlappedHelper::BindSocket(_socket);
 
 		if (s_trace)
 		{
@@ -278,14 +277,14 @@ private:
 		//		delete this;
 	}
 
-	static void WriteCallback(Connection* c, DWORD dwErrorCode, DWORD bytes)
+	static void WriteCallback(void* p, DWORD dwErrorCode, DWORD bytes)
 	{
-		c->OnWrite(dwErrorCode, bytes);
+		((Connection *)p)->OnWrite(dwErrorCode, bytes);
 	}
 
-	static void ReadCallback(Connection* c, DWORD dwErrorCode, DWORD bytes)
+	static void ReadCallback(void* p, DWORD dwErrorCode, DWORD bytes)
 	{
-		c->OnRead(dwErrorCode, bytes);
+		((Connection *)p)->OnRead(dwErrorCode, bytes);
 	}
 };
 
@@ -295,7 +294,7 @@ public:
 	SOCKET _listenSocket;
 	SOCKET _acceptSocket;
 	BOOL _isSsl;
-	OverlappedHelper<ListenSocket> _helper;
+	OverlappedHelper _helper;
 
 	ListenSocket(int port, BOOL isSsl) :
 		_isSsl(isSsl),
@@ -311,7 +310,7 @@ public:
 		}
 
 		// Bind to the thread pool IOCP
-		OverlappedHelper<ListenSocket>::BindSocket(_listenSocket);
+		OverlappedHelper::BindSocket(_listenSocket);
 
 		// Bind to IP/Port
 		sockaddr_in sa;
@@ -404,9 +403,9 @@ private:
 		c->Run();
 	}
 
-	static void AcceptCallback(ListenSocket* l, DWORD dwErrorCode, DWORD bytes)
+	static void AcceptCallback(void* p, DWORD dwErrorCode, DWORD bytes)
 	{
-		l->OnAccept(dwErrorCode, bytes);
+		((ListenSocket *)p)->OnAccept(dwErrorCode, bytes);
 	}
 };
 
