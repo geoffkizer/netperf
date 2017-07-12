@@ -66,6 +66,7 @@ class Connection
 private:
 	SOCKET _socket;
 	BOOL _isSsl;
+	int _totalBytesRead;
 
 	OverlappedHelper<Connection> _readHelper;
 	OverlappedHelper<Connection> _writeHelper;
@@ -77,6 +78,7 @@ public:
 	Connection(SOCKET s, BOOL isSsl) :
 		_socket(s),
 		_isSsl(isSsl),
+		_totalBytesRead(0),
 		_readHelper(this, &Connection::OnRead),
 		_writeHelper(this, &Connection::OnWrite)
 	{
@@ -174,10 +176,17 @@ private:
 			printf("Read complete, bytesRead = %u\n", bytesRead);
 		}
 
-		if (bytesRead != s_expectedReadSize)
+		_totalBytesRead += bytesRead;
+		if (_totalBytesRead > s_expectedReadSize)
 		{
-			printf("Unexpected read size, bytesRead = %u", bytesRead);
+			printf("Unexpectedly large read size, _totalBytesRead = %u\n", _totalBytesRead);
 			exit(-1);
+		}
+		else if (_totalBytesRead < s_expectedReadSize)
+		{
+			// Incomplete read, go read again
+			DoRead();
+			return;
 		}
 
 		// CONSIDER: May need to loop on read, probably isn't necessary for benchmarking
@@ -234,6 +243,7 @@ private:
 			exit(-1);
 		}
 
+		_totalBytesRead = 0;
 		DoRead();
 	}
 
