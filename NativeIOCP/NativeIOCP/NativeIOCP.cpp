@@ -22,7 +22,7 @@ template <class T>
 class OverlappedHelper : public OVERLAPPED
 {
 public:
-	typedef void (T::* OverlappedCallback)(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered);
+	typedef void (*OverlappedCallback)(T* target, DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered);
 
 private:
 	T* _target;
@@ -66,12 +66,12 @@ private:
 		memset(lpOverlapped, 0, sizeof(OVERLAPPED));
 
 		OverlappedHelper * helper = static_cast<OverlappedHelper*>(lpOverlapped);
-		((helper->_target)->*(helper->_callback))(dwErrorCode, dwNumberOfBytesTransfered);
+		(*(helper->_callback))((helper->_target), dwErrorCode, dwNumberOfBytesTransfered);
 	}
 };
 
 
-class Connection 
+class Connection
 {
 private:
 	SOCKET _socket;
@@ -82,15 +82,15 @@ private:
 	OverlappedHelper<Connection> _writeHelper;
 
 	BYTE _readBuffer[4096];
-//	BYTE _writeBuffer[4096];
+	//	BYTE _writeBuffer[4096];
 
 public:
 	Connection(SOCKET s, BOOL isSsl) :
 		_socket(s),
 		_isSsl(isSsl),
 		_totalBytesRead(0),
-		_readHelper(this, &Connection::OnRead),
-		_writeHelper(this, &Connection::OnWrite)
+		_readHelper(this, &Connection::ReadCallback),
+		_writeHelper(this, &Connection::WriteCallback)
 	{
 	}
 
@@ -127,7 +127,7 @@ public:
 		BOOL nodelay = true;
 		err = setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (const char *)&nodelay, sizeof(BOOL));
 		if (err != 0)
-		{ 
+		{
 			printf("setsockopt(TCP_NODELAY) failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
@@ -275,7 +275,17 @@ private:
 	void Shutdown()
 	{
 		closesocket(_socket);
-//		delete this;
+		//		delete this;
+	}
+
+	static void WriteCallback(Connection* c, DWORD dwErrorCode, DWORD bytes)
+	{
+		c->OnWrite(dwErrorCode, bytes);
+	}
+
+	static void ReadCallback(Connection* c, DWORD dwErrorCode, DWORD bytes)
+	{
+		c->OnRead(dwErrorCode, bytes);
 	}
 };
 
@@ -289,7 +299,7 @@ public:
 
 	ListenSocket(int port, BOOL isSsl) :
 		_isSsl(isSsl),
-		_helper(this, &ListenSocket::OnAccept),
+		_helper(this, &ListenSocket::AcceptCallback),
 		_acceptSocket(NULL)
 	{
 		// Create a listening socket
@@ -392,6 +402,11 @@ private:
 		// Handle this connection
 		Connection* c = new Connection(s, _isSsl);
 		c->Run();
+	}
+
+	static void AcceptCallback(ListenSocket* l, DWORD dwErrorCode, DWORD bytes)
+	{
+		l->OnAccept(dwErrorCode, bytes);
 	}
 };
 
