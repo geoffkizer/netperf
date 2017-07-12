@@ -41,29 +41,38 @@ func handle_connection(c net.Conn) {
     buf := make([]byte, 4096)
     
 	for {
-		bytesRead, err := c.Read(buf)
-		if err != nil {
-			if s_trace {
-				log.Printf("connection read error, err=%s", err)
+		totalBytesRead := 0;
+		for {
+			bytesRead, err := c.Read(buf)
+			if err != nil {
+				if s_trace {
+					log.Printf("connection read error, err=%s", err)
+				}
+				c.Close()
+				return
 			}
-			c.Close()
-			return
-		}
-        
-		if bytesRead == 0 {
-			if s_trace {
-				log.Printf("connection closed by client")
+			
+			if bytesRead == 0 {
+				if s_trace {
+					log.Printf("connection closed by client")
+				}
+				c.Close()
+				return
 			}
-			c.Close()
-			return
-		}
-		
-		if s_trace {
-	        log.Printf("read %n bytes", bytesRead)
-		}
-		
-        if bytesRead != s_expectedReadSize {
-			log.Fatal("unexpected read size %s", bytesRead)
+			
+			if s_trace {
+				log.Printf("read %n bytes", bytesRead)
+			}
+
+			totalBytesRead += bytesRead
+
+			if totalBytesRead > s_expectedReadSize {
+				log.Fatal("unexpected read size %n", bytesRead)
+			}
+
+			if totalBytesRead == s_expectedReadSize {
+				break
+			}
 		}
 		
         bytesWritten, err := c.Write(s_responseMessage)
@@ -173,6 +182,8 @@ func main() {
 
     go accept_connections(listener)
 
+    log.Printf("Listening on *:5000")
+
     cert, err := create_cert()
 	if err != nil {
 		log.Fatal(err)
@@ -185,6 +196,8 @@ func main() {
 	}
 	
     go accept_connections(sslListener)
+
+    log.Printf("Listening on *:5001 (ssl)")
 
     log.Printf("Server running")
 

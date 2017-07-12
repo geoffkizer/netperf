@@ -3,13 +3,6 @@
 
 #include "stdafx.h"
 
-// Forward decls
-
-class Connection;
-void QueueConnectionHandler();
-
-SOCKET s_listenSocket = INVALID_SOCKET;
-
 #define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
 #define PIPELINED_RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE
 
@@ -19,64 +12,384 @@ const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude tr
 const int s_expectedReadSize = 2624;
 
 // Cmd line arguments
-bool s_trace = false;
+bool s_trace = true;
 bool s_syncCompletions = true;
 int s_acceptCount = 1;
 
 // Inherit from OVERLAPPED so we can cast to/from
 
-class Connection : OVERLAPPED
+class OverlappedHelper : public OVERLAPPED
+{
+public:
+	typedef void (*OverlappedCallback)(void* target, DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered);
+
+private:
+	void* _target;
+	OverlappedCallback _callback;
+
+public:
+	OverlappedHelper(void* target, OverlappedCallback callback) :
+		_target(target),
+		_callback(callback)
+	{
+		memset((OVERLAPPED*)this, 0, sizeof(OVERLAPPED));
+	}
+
+	static bool BindSocket(SOCKET socket)
+	{
+		if (s_trace)
+		{
+			printf("BindSocket called\n");
+		}
+
+		int err = BindIoCompletionCallback((HANDLE)socket, &CompletionCallback, 0);
+		if (err == 0)
+		{
+			if (s_trace)
+			{
+				printf("BindSocket failed\n");
+			}
+
+			return false;
+		}
+
+		if (s_trace)
+		{
+			printf("BindSocket succeeded\n");
+		}
+
+		return true;
+	}
+
+private:
+	static void CALLBACK CompletionCallback(
+		DWORD dwErrorCode,
+		DWORD dwNumberOfBytesTransfered,
+		LPOVERLAPPED lpOverlapped)
+	{
+		// Clear OVERLAPPED for next use
+		memset(lpOverlapped, 0, sizeof(OVERLAPPED));
+
+		OverlappedHelper * helper = static_cast<OverlappedHelper*>(lpOverlapped);
+		(*(helper->_callback))((helper->_target), dwErrorCode, dwNumberOfBytesTransfered);
+	}
+};
+
+
+class Connection
 {
 private:
 	SOCKET _socket;
+	BOOL _isSsl;
+	int _totalBytesRead;
+
+	OverlappedHelper _readHelper;
+	OverlappedHelper _writeHelper;
+
 	BYTE _readBuffer[4096];
-	
-	enum State
-	{
-		IsReading = 0,
-		IsWriting = 1
-	};
+	//	BYTE _writeBuffer[4096];
 
-	State _state;
-
-	OVERLAPPED* ToOverlapped()
+public:
+	Connection(SOCKET s, BOOL isSsl) :
+		_socket(s),
+		_isSsl(isSsl),
+		_totalBytesRead(0),
+		_readHelper(this, &Connection::ReadCallback),
+		_writeHelper(this, &Connection::WriteCallback)
 	{
-		return static_cast<OVERLAPPED *>(this);
 	}
 
-	static Connection* FromOverlapped(OVERLAPPED * o)
+	void Run()
 	{
-		return static_cast<Connection *>(o);
-	}
-
-	void DoAccept()
-	{
-		_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-		if (_socket == INVALID_SOCKET)
+		if (s_trace)
 		{
-			printf("Create accept socket failed with error: %u\n", WSAGetLastError());
+			printf("Connection::Run called\n");
+		}
+
+		OverlappedHelper::BindSocket(_socket);
+
+		if (s_trace)
+		{
+			printf("Connection bound to IOCP\n");
+		}
+
+		int err;
+		if (s_syncCompletions)
+		{
+			err = SetFileCompletionNotificationModes((HANDLE)_socket, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | FILE_SKIP_SET_EVENT_ON_HANDLE);
+			if (err == 0)
+			{
+				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %x\n", GetLastError());
+				exit(-1);
+			}
+
+			if (s_trace)
+			{
+				printf("SetFileCompletionNotificationModes succeeded\n");
+			}
+		}
+
+		BOOL nodelay = true;
+		err = setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (const char *)&nodelay, sizeof(BOOL));
+		if (err != 0)
+		{
+			printf("setsockopt(TCP_NODELAY) failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
-		memset(ToOverlapped(), 0, sizeof(OVERLAPPED));
-		BOOL success = AcceptEx(s_listenSocket, _socket, &_readBuffer, 0,
-			sizeof(sockaddr_in6) + 16, sizeof(sockaddr_in6) + 16, NULL, ToOverlapped());
+		if (s_trace)
+		{
+			printf("setsockopt(TCP_NODELAY) succeeded\n");
+		}
+
+		DoRead();
+	}
+
+private:
+	void DoRead()
+	{
+		WSABUF wbuf;
+		wbuf.buf = (CHAR*)&_readBuffer;
+		wbuf.len = 4096;
+		DWORD bytesReceived;
+		DWORD flags = 0;
+		int err = WSARecv(_socket, &wbuf, 1, &bytesReceived, &flags, &_readHelper, NULL);
+		if (err == 0)
+		{
+			// Synchronous completion
+			if (s_syncCompletions)
+				OnRead(0, bytesReceived);
+		}
+		else
+		{
+			int sockError = WSAGetLastError();
+			if (sockError != WSA_IO_PENDING)
+			{
+				if (s_trace)
+				{
+					printf("WSARecv failed synchronously, error code = %x\n", sockError);
+				}
+
+				Shutdown();
+				return;
+			}
+		}
+	}
+
+	void OnRead(DWORD dwErrorCode, DWORD bytesRead)
+	{
+		if (dwErrorCode != 0)
+		{
+			// Just assume this is a connection reset, and stop processing the connection
+			if (s_trace)
+			{
+				printf("Socket I/O failed, error code = %x\n", dwErrorCode);
+			}
+
+			Shutdown();
+			return;
+		}
+
+		if (bytesRead == 0)
+		{
+			if (s_trace)
+			{
+				printf("Connection closed by client\n");
+			}
+
+			Shutdown();
+			return;
+		}
+
+		if (s_trace)
+		{
+			printf("Read complete, bytesRead = %d\n", bytesRead);
+		}
+
+		_totalBytesRead += bytesRead;
+		if (_totalBytesRead > s_expectedReadSize)
+		{
+			printf("Unexpectedly large read size, _totalBytesRead = %d\n", _totalBytesRead);
+			exit(-1);
+		}
+		else if (_totalBytesRead < s_expectedReadSize)
+		{
+			// Incomplete read, go read again
+			DoRead();
+			return;
+		}
+
+		// CONSIDER: May need to loop on read, probably isn't necessary for benchmarking
+
+		WSABUF wbuf;
+		wbuf.buf = (CHAR*)s_responseMessage;
+		wbuf.len = s_responseMessageLength;
+		DWORD bytes;
+		int err = WSASend(_socket, &wbuf, 1, &bytes, 0, &_writeHelper, NULL);
+		if (err == 0)
+		{
+			// Synchronous completion
+			if (s_syncCompletions)
+				OnWrite(0, bytes);
+		}
+		else
+		{
+			int sockError = WSAGetLastError();
+			if (sockError != WSA_IO_PENDING)
+			{
+				if (s_trace)
+				{
+					printf("WSASend failed synchronously, error code = %x\n", sockError);
+				}
+
+				Shutdown();
+				return;
+			}
+		}
+	}
+
+	void OnWrite(DWORD dwErrorCode, DWORD bytesWritten)
+	{
+		if (dwErrorCode != 0)
+		{
+			// Just assume this is a connection reset, and stop processing the connection
+			if (s_trace)
+			{
+				printf("Socket I/O failed, error code = %x\n", dwErrorCode);
+			}
+
+			Shutdown();
+			return;
+		}
+
+		if (s_trace)
+		{
+			printf("Write complete, bytesRead = %d\n", bytesWritten);
+		}
+
+		if (bytesWritten != s_responseMessageLength)
+		{
+			printf("Unexpected write size, bytesWritten = %d\n", bytesWritten);
+			exit(-1);
+		}
+
+		_totalBytesRead = 0;
+		DoRead();
+	}
+
+	void Shutdown()
+	{
+		closesocket(_socket);
+		//		delete this;
+	}
+
+	static void WriteCallback(void* p, DWORD dwErrorCode, DWORD bytes)
+	{
+		((Connection *)p)->OnWrite(dwErrorCode, bytes);
+	}
+
+	static void ReadCallback(void* p, DWORD dwErrorCode, DWORD bytes)
+	{
+		((Connection *)p)->OnRead(dwErrorCode, bytes);
+	}
+};
+
+class ListenSocket
+{
+public:
+	SOCKET _listenSocket;
+	SOCKET _acceptSocket;
+	BOOL _isSsl;
+	OverlappedHelper _helper;
+
+	ListenSocket(int port, BOOL isSsl) :
+		_isSsl(isSsl),
+		_helper(this, &ListenSocket::AcceptCallback),
+		_acceptSocket(NULL)
+	{
+		// Create a listening socket
+		_listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (_listenSocket == INVALID_SOCKET)
+		{
+			printf("Create of ListenSocket socket failed with error: %x\n", WSAGetLastError());
+			exit(-1);
+		}
+
+		// Bind to the thread pool IOCP
+		OverlappedHelper::BindSocket(_listenSocket);
+
+		// Bind to IP/Port
+		sockaddr_in sa;
+		sa.sin_family = AF_INET;
+		sa.sin_addr.S_un.S_addr = INADDR_ANY;
+		sa.sin_port = htons(port);
+		if (bind(_listenSocket, (SOCKADDR *)&sa, sizeof(sa)) == SOCKET_ERROR)
+		{
+			printf("bind failed with error: %x\n", WSAGetLastError());
+			exit(-1);
+		}
+
+		// Listen
+		int err = listen(_listenSocket, SOMAXCONN);
+		if (err == SOCKET_ERROR)
+		{
+			printf("listen failed with error: %x\n", WSAGetLastError());
+			exit(-1);
+		}
+
+		printf("Listening on port %d, ssl = %s\n", port, isSsl ? "true" : "false");
+	}
+
+	void Start()
+	{
+		DoAccept();
+	}
+
+private:
+	void DoAccept()
+	{
+		if (_acceptSocket != NULL)
+		{
+			printf("_acceptSocket is not NULL???\n");
+			exit(-1);
+		}
+
+		_acceptSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		if (_acceptSocket == INVALID_SOCKET)
+		{
+			printf("Create accept socket failed with error: %x\n", WSAGetLastError());
+			exit(-1);
+		}
+
+//		memset(ToOverlapped(), 0, sizeof(OVERLAPPED));
+
+		const int addressSize = sizeof(sockaddr_in6) + 16;
+		BYTE outBuffer[addressSize * 2];
+		BOOL success = AcceptEx(_listenSocket, _acceptSocket, &outBuffer, 0, addressSize, addressSize, NULL, &_helper);
 		if (success == FALSE)
 		{
 			int error = WSAGetLastError();
 			if (error != ERROR_IO_PENDING)
 			{
-				printf("AcceptEx failed with error: %u\n", WSAGetLastError());
+				printf("AcceptEx failed with error: %x\n", WSAGetLastError());
 				exit(-1);
 			}
 		}
+
+		if (success == TRUE)
+		{
+			printf("Unexpected sync completion from AcceptEx\n");
+			exit(-1);
+		}
+
+		// Completions are always asynchronous, so we are done here
 	}
 
-	void OnAccept(DWORD dwErrorCode)
+	void OnAccept(DWORD dwErrorCode, DWORD dwNumberofBytesTransferred)
 	{
 		if (dwErrorCode != 0)
 		{
-			printf("Accept failed, error code = %u\n", dwErrorCode);
+			printf("Accept failed, error code = %x\n", dwErrorCode);
 			exit(-1);
 		}
 
@@ -85,201 +398,22 @@ private:
 			printf("Connection accepted\n");
 		}
 
-		// Spawn another work item to handle next connection
-		QueueConnectionHandler();
+		SOCKET s = _acceptSocket;
+		_acceptSocket = NULL;
 
-		int err = BindIoCompletionCallback((HANDLE)_socket, &Connection::CompletionCallback, 0);
-		if (err == 0)
-		{
-			printf("BindIoCompletionCallback of accepted socket failed with error: %u\n", GetLastError());
-			exit(-1);
-		}
+		// Kick off another async accept
+		DoAccept();
 
-		if (s_syncCompletions)
-		{
-			err = SetFileCompletionNotificationModes((HANDLE)_socket, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | FILE_SKIP_SET_EVENT_ON_HANDLE);
-			if (err == 0)
-			{
-				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %u\n", GetLastError());
-				exit(-1);
-			}
-		}
-
-		BOOL nodelay = true;
-		err = setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (const char *)&nodelay, sizeof(BOOL));
-		if (err != 0)
-		{ 
-			printf("setsockopt(TCP_NODELAY) failed with error: %u\n", WSAGetLastError());
-			exit(-1);
-		}
-
-		DoRead();
+		// Handle this connection
+		Connection* c = new Connection(s, _isSsl);
+		c->Run();
 	}
 
-	void DoRead()
+	static void AcceptCallback(void* p, DWORD dwErrorCode, DWORD bytes)
 	{
-		_state = IsReading;
-
-		WSABUF wbuf;
-		wbuf.buf = (CHAR*)&_readBuffer;
-		wbuf.len = 4096;
-		DWORD bytesReceived;
-		DWORD flags = 0;
-		int err = WSARecv(_socket, &wbuf, 1, &bytesReceived, &flags, (WSAOVERLAPPED *)ToOverlapped(), NULL);
-		if (err == 0)
-		{
-			// Synchronous completion
-			if (s_syncCompletions)
-				OnReadComplete(bytesReceived);
-		}
-		else
-		{
-			int sockError = WSAGetLastError();
-			if (sockError != WSA_IO_PENDING)
-			{
-				printf("WSARecv failed synchronously, error code = %u", sockError);
-				exit(-1);
-			}
-		}
-	}
-
-	void OnReadComplete(int bytesRead)
-	{
-		if (bytesRead == 0)
-		{
-			if (s_trace)
-			{
-				printf("Connection closed by client\n");
-			}
-
-			closesocket(_socket);
-			delete this;
-			return;
-		}
-
-		if (s_trace)
-		{
-			printf("Read complete, bytesRead = %u\n", bytesRead);
-		}
-
-		if (bytesRead != s_expectedReadSize)
-		{
-			printf("Unexpected read size, bytesRead = %u", bytesRead);
-			exit(-1);
-		}
-
-		// CONSIDER: May need to loop on read, probably isn't necessary for benchmarking
-
-		_state = IsWriting;
-
-		WSABUF wbuf;
-		wbuf.buf = (CHAR*)s_responseMessage;
-		wbuf.len = s_responseMessageLength;
-		DWORD bytes;
-		int err = WSASend(_socket, &wbuf, 1, &bytes, 0, (WSAOVERLAPPED*)ToOverlapped(), NULL);
-		if (err == 0)
-		{
-			// Synchronous completion
-			if (s_syncCompletions)
-				OnWriteComplete(bytes);
-		}
-		else
-		{
-			int sockError = WSAGetLastError();
-			if (sockError != WSA_IO_PENDING)
-			{
-				printf("WSASend failed synchronously, error code = %u", sockError);
-				exit(-1);
-			}
-		}
-	}
-
-	void OnWriteComplete(int bytesWritten)
-	{
-		if (s_trace)
-		{
-			printf("Write complete, bytesRead = %u\n", bytesWritten);
-		}
-
-		if (bytesWritten != s_responseMessageLength)
-		{
-			printf("Unexpected write size, bytesWritten = %u", bytesWritten);
-			exit(-1);
-		}
-
-		// CONSIDER: May need to loop on write, probably isn't necessary for benchmarking
-
-		DoRead();
-	}
-
-	void OnCompletion(DWORD dwErrorCode, DWORD dwNumberofBytesTransferred)
-	{
-		if (dwErrorCode != 0)
-		{
-			// Just assume this is a connection reset, and stop processing the connection
-			if (s_trace)
-			{
-				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
-			}
-
-			closesocket(_socket);
-			delete this;
-			return;
-		}
-
-		switch (_state)
-		{
-		case IsReading:
-			OnReadComplete(dwNumberofBytesTransferred);
-			break;
-
-		case IsWriting:
-			OnWriteComplete(dwNumberofBytesTransferred);
-			break;
-
-		default:
-			printf("Unexpected connection state\n");
-			exit(-1);
-		}
-	}
-
-	static void CALLBACK CompletionCallback(
-		DWORD dwErrorCode,
-		DWORD dwNumberOfBytesTransfered,
-		LPOVERLAPPED lpOverlapped)
-	{
-		FromOverlapped(lpOverlapped)->OnCompletion(dwErrorCode, dwNumberOfBytesTransfered);
-	}
-
-public:
-	Connection()
-	{
-	}
-
-	static DWORD WINAPI Run(LPVOID param)
-	{
-		Connection* c = new Connection();
-		c->DoAccept();
-		return 0;
-	}
-
-	static void CALLBACK ListenSocketCallback(
-		DWORD dwErrorCode,
-		DWORD dwNumberOfBytesTransfered,
-		LPOVERLAPPED lpOverlapped)
-	{
-		FromOverlapped(lpOverlapped)->OnAccept(dwErrorCode);
+		((ListenSocket *)p)->OnAccept(dwErrorCode, bytes);
 	}
 };
-
-void QueueConnectionHandler()
-{
-	if (QueueUserWorkItem(&Connection::Run, NULL, 0) == FALSE)
-	{
-		printf("QueueUserWorkItem failed with error: %u\n", GetLastError());
-		exit(-1);
-	}
-}
 
 void Start()
 {
@@ -294,43 +428,11 @@ void Start()
 	}
 
 	// Create a listening socket
-	s_listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (s_listenSocket == INVALID_SOCKET) 
-	{
-		printf("Create of ListenSocket socket failed with error: %u\n", WSAGetLastError());
-		exit(-1);
-	}
+	ListenSocket* raw = new ListenSocket(5000, false);
+	raw->Start();
 
-	// Bind to the thread pool IOCP
-	err = BindIoCompletionCallback((HANDLE)s_listenSocket, &Connection::ListenSocketCallback, 0);
-	if (err == 0)
-	{
-		printf("BindIoCompletionCallback of ListenSocket socket failed with error: %u\n", GetLastError());
-		exit(-1);
-	}
-
-	// Bind to IP/Port
-	sockaddr_in sa;
-	sa.sin_family = AF_INET;
-	sa.sin_addr.S_un.S_addr = INADDR_ANY;
-	sa.sin_port = htons(5000);
-	if (bind(s_listenSocket, (SOCKADDR *)&sa, sizeof(sa)) == SOCKET_ERROR) 
-	{
-		printf("bind failed with error: %u\n", WSAGetLastError());
-		exit(-1);
-	}
-
-	// Listen
-	err = listen(s_listenSocket, SOMAXCONN);
-	if (err == SOCKET_ERROR) 
-	{
-		printf("listen failed with error: %u\n", WSAGetLastError());
-		exit(-1);
-	}
-
-	// Spawn async accepts
-	for (int i = 0; i < s_acceptCount; i++)
-		QueueConnectionHandler();
+	ListenSocket* ssl = new ListenSocket(5001, true);
+	ssl->Start();
 }
 
 void PrintUsage()
