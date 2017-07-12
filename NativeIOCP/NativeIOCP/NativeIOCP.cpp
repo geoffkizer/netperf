@@ -250,7 +250,7 @@ private:
 	void Shutdown()
 	{
 		closesocket(_socket);
-		delete this;
+//		delete this;
 	}
 };
 
