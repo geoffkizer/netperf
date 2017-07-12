@@ -33,6 +33,7 @@ public:
 		_target(target),
 		_callback(callback)
 	{
+		memset((OVERLAPPED*)this, 0, sizeof(OVERLAPPED));
 	}
 
 	static void BindSocket(SOCKET socket)
@@ -51,6 +52,9 @@ private:
 		DWORD dwNumberOfBytesTransfered,
 		LPOVERLAPPED lpOverlapped)
 	{
+		// Clear OVERLAPPED for next use
+		memset(lpOverlapped, 0, sizeof(OVERLAPPED));
+
 		OverlappedHelper * helper = static_cast<OverlappedHelper*>(lpOverlapped);
 		((helper->_target)->*(helper->_callback))(dwErrorCode, dwNumberOfBytesTransfered);
 	}
