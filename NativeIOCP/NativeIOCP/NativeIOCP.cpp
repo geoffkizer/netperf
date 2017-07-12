@@ -38,11 +38,21 @@ public:
 
 	static void BindSocket(SOCKET socket)
 	{
+		if (s_trace)
+		{
+			printf("BindSocket called\n");
+		}
+
 		int err = BindIoCompletionCallback((HANDLE)socket, &CompletionCallback, 0);
 		if (err == 0)
 		{
 			printf("BindIoCompletionCallback of socket failed with error: %x\n", GetLastError());
 			exit(-1);
+		}
+
+		if (s_trace)
+		{
+			printf("BindSocket done\n");
 		}
 	}
 
