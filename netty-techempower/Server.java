@@ -23,7 +23,7 @@ public class Server {
     public Server() {
     }
 
-    public ChannelFuture runListener(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, SslContext sslCtx)
+    public ChannelFuture runListener(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, SslContext sslCtx) throws Exception
     {
         ServerBootstrap b = new ServerBootstrap(); // (2)
         b.group(bossGroup, workerGroup)
