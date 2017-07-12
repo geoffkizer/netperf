@@ -88,10 +88,15 @@ public:
 	{
 		if (s_trace)
 		{
-			printf("Connection accepted\n");
+			printf("Connection::Run called\n");
 		}
 
 		OverlappedHelper<Connection>::BindSocket(_socket);
+
+		if (s_trace)
+		{
+			printf("Connection bound to IOCP\n");
+		}
 
 		int err;
 		if (s_syncCompletions)
@@ -102,6 +107,11 @@ public:
 				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %x\n", GetLastError());
 				exit(-1);
 			}
+
+			if (s_trace)
+			{
+				printf("SetFileCompletionNotificationModes succeeded\n");
+			}
 		}
 
 		BOOL nodelay = true;
@@ -110,6 +120,11 @@ public:
 		{ 
 			printf("setsockopt(TCP_NODELAY) failed with error: %x\n", WSAGetLastError());
 			exit(-1);
+		}
+
+		if (s_trace)
+		{
+			printf("setsockopt(TCP_NODELAY) succeeded\n");
 		}
 
 		DoRead();
@@ -137,7 +152,7 @@ private:
 			{
 				if (s_trace)
 				{
-					printf("WSARecv failed synchronously, error code = %x", sockError);
+					printf("WSARecv failed synchronously, error code = %x\n", sockError);
 				}
 
 				Shutdown();
@@ -209,7 +224,7 @@ private:
 			{
 				if (s_trace)
 				{
-					printf("WSASend failed synchronously, error code = %x", sockError);
+					printf("WSASend failed synchronously, error code = %x\n", sockError);
 				}
 
 				Shutdown();
@@ -239,7 +254,7 @@ private:
 
 		if (bytesWritten != s_responseMessageLength)
 		{
-			printf("Unexpected write size, bytesWritten = %d", bytesWritten);
+			printf("Unexpected write size, bytesWritten = %d\n", bytesWritten);
 			exit(-1);
 		}
 
