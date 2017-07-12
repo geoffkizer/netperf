@@ -35,7 +35,7 @@ public:
 		memset((OVERLAPPED*)this, 0, sizeof(OVERLAPPED));
 	}
 
-	static void BindSocket(SOCKET socket)
+	static bool BindSocket(SOCKET socket)
 	{
 		if (s_trace)
 		{
@@ -45,14 +45,20 @@ public:
 		int err = BindIoCompletionCallback((HANDLE)socket, &CompletionCallback, 0);
 		if (err == 0)
 		{
-			printf("BindIoCompletionCallback of socket failed with error: %x\n", GetLastError());
-			exit(-1);
+			if (s_trace)
+			{
+				printf("BindSocket failed\n");
+			}
+
+			return false;
 		}
 
 		if (s_trace)
 		{
-			printf("BindSocket done\n");
+			printf("BindSocket succeeded\n");
 		}
+
+		return true;
 	}
 
 private:
