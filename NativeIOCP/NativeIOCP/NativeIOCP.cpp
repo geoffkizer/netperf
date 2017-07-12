@@ -12,7 +12,7 @@ const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude tr
 const int s_expectedReadSize = 2624;
 
 // Cmd line arguments
-bool s_trace = false;
+bool s_trace = true;
 bool s_syncCompletions = true;
 int s_acceptCount = 1;
 
