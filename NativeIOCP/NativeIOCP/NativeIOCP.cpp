@@ -41,7 +41,7 @@ public:
 		int err = BindIoCompletionCallback((HANDLE)socket, &CompletionCallback, 0);
 		if (err == 0)
 		{
-			printf("BindIoCompletionCallback of socket failed with error: %u\n", GetLastError());
+			printf("BindIoCompletionCallback of socket failed with error: %x\n", GetLastError());
 			exit(-1);
 		}
 	}
@@ -99,7 +99,7 @@ public:
 			err = SetFileCompletionNotificationModes((HANDLE)_socket, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | FILE_SKIP_SET_EVENT_ON_HANDLE);
 			if (err == 0)
 			{
-				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %u\n", GetLastError());
+				printf("SetFileCompletionNotificationModes of accepted socket failed with error: %x\n", GetLastError());
 				exit(-1);
 			}
 		}
@@ -108,7 +108,7 @@ public:
 		err = setsockopt(_socket, IPPROTO_TCP, TCP_NODELAY, (const char *)&nodelay, sizeof(BOOL));
 		if (err != 0)
 		{ 
-			printf("setsockopt(TCP_NODELAY) failed with error: %u\n", WSAGetLastError());
+			printf("setsockopt(TCP_NODELAY) failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
@@ -137,7 +137,7 @@ private:
 			{
 				if (s_trace)
 				{
-					printf("WSARecv failed synchronously, error code = %u", sockError);
+					printf("WSARecv failed synchronously, error code = %x", sockError);
 				}
 
 				Shutdown();
@@ -153,7 +153,7 @@ private:
 			// Just assume this is a connection reset, and stop processing the connection
 			if (s_trace)
 			{
-				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
+				printf("Socket I/O failed, error code = %x\n", dwErrorCode);
 			}
 
 			Shutdown();
@@ -173,13 +173,13 @@ private:
 
 		if (s_trace)
 		{
-			printf("Read complete, bytesRead = %u\n", bytesRead);
+			printf("Read complete, bytesRead = %d\n", bytesRead);
 		}
 
 		_totalBytesRead += bytesRead;
 		if (_totalBytesRead > s_expectedReadSize)
 		{
-			printf("Unexpectedly large read size, _totalBytesRead = %u\n", _totalBytesRead);
+			printf("Unexpectedly large read size, _totalBytesRead = %d\n", _totalBytesRead);
 			exit(-1);
 		}
 		else if (_totalBytesRead < s_expectedReadSize)
@@ -209,7 +209,7 @@ private:
 			{
 				if (s_trace)
 				{
-					printf("WSASend failed synchronously, error code = %u", sockError);
+					printf("WSASend failed synchronously, error code = %x", sockError);
 				}
 
 				Shutdown();
@@ -225,7 +225,7 @@ private:
 			// Just assume this is a connection reset, and stop processing the connection
 			if (s_trace)
 			{
-				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
+				printf("Socket I/O failed, error code = %x\n", dwErrorCode);
 			}
 
 			Shutdown();
@@ -234,12 +234,12 @@ private:
 
 		if (s_trace)
 		{
-			printf("Write complete, bytesRead = %u\n", bytesWritten);
+			printf("Write complete, bytesRead = %d\n", bytesWritten);
 		}
 
 		if (bytesWritten != s_responseMessageLength)
 		{
-			printf("Unexpected write size, bytesWritten = %u", bytesWritten);
+			printf("Unexpected write size, bytesWritten = %d", bytesWritten);
 			exit(-1);
 		}
 
@@ -271,7 +271,7 @@ public:
 		_listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (_listenSocket == INVALID_SOCKET)
 		{
-			printf("Create of ListenSocket socket failed with error: %u\n", WSAGetLastError());
+			printf("Create of ListenSocket socket failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
@@ -285,7 +285,7 @@ public:
 		sa.sin_port = htons(port);
 		if (bind(_listenSocket, (SOCKADDR *)&sa, sizeof(sa)) == SOCKET_ERROR)
 		{
-			printf("bind failed with error: %u\n", WSAGetLastError());
+			printf("bind failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
@@ -293,7 +293,7 @@ public:
 		int err = listen(_listenSocket, SOMAXCONN);
 		if (err == SOCKET_ERROR)
 		{
-			printf("listen failed with error: %u\n", WSAGetLastError());
+			printf("listen failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
@@ -317,7 +317,7 @@ private:
 		_acceptSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (_acceptSocket == INVALID_SOCKET)
 		{
-			printf("Create accept socket failed with error: %u\n", WSAGetLastError());
+			printf("Create accept socket failed with error: %x\n", WSAGetLastError());
 			exit(-1);
 		}
 
@@ -331,7 +331,7 @@ private:
 			int error = WSAGetLastError();
 			if (error != ERROR_IO_PENDING)
 			{
-				printf("AcceptEx failed with error: %u\n", WSAGetLastError());
+				printf("AcceptEx failed with error: %x\n", WSAGetLastError());
 				exit(-1);
 			}
 		}
@@ -349,7 +349,7 @@ private:
 	{
 		if (dwErrorCode != 0)
 		{
-			printf("Accept failed, error code = %u\n", dwErrorCode);
+			printf("Accept failed, error code = %x\n", dwErrorCode);
 			exit(-1);
 		}
 
