@@ -129,8 +129,13 @@ private:
 			int sockError = WSAGetLastError();
 			if (sockError != WSA_IO_PENDING)
 			{
-				printf("WSARecv failed synchronously, error code = %u", sockError);
-				exit(-1);
+				if (s_trace)
+				{
+					printf("WSARecv failed synchronously, error code = %u", sockError);
+				}
+
+				Shutdown();
+				return;
 			}
 		}
 	}
@@ -145,8 +150,7 @@ private:
 				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
 			}
 
-			closesocket(_socket);
-			delete this;
+			Shutdown();
 			return;
 		}
 
@@ -157,8 +161,7 @@ private:
 				printf("Connection closed by client\n");
 			}
 
-			closesocket(_socket);
-			delete this;
+			Shutdown();
 			return;
 		}
 
@@ -191,8 +194,13 @@ private:
 			int sockError = WSAGetLastError();
 			if (sockError != WSA_IO_PENDING)
 			{
-				printf("WSASend failed synchronously, error code = %u", sockError);
-				exit(-1);
+				if (s_trace)
+				{
+					printf("WSASend failed synchronously, error code = %u", sockError);
+				}
+
+				Shutdown();
+				return;
 			}
 		}
 	}
@@ -207,8 +215,7 @@ private:
 				printf("Socket I/O failed, error code = %u\n", dwErrorCode);
 			}
 
-			closesocket(_socket);
-			delete this;
+			Shutdown();
 			return;
 		}
 
@@ -224,6 +231,12 @@ private:
 		}
 
 		DoRead();
+	}
+
+	void Shutdown()
+	{
+		closesocket(_socket);
+		delete this;
 	}
 };
 
