@@ -20,13 +20,32 @@ import io.netty.buffer.PooledByteBufAllocator;
  */
 public class Server {
 
-    private int port;
+    public Server() {
+    }
 
-    private static final boolean s_doSsl = true;
+    public ChannelFuture runListener(EventLoopGroup bossGroup, EventLoopGroup workerGroup, int port, SslContext sslCtx)
+    {
+        ServerBootstrap b = new ServerBootstrap(); // (2)
+        b.group(bossGroup, workerGroup)
+            .channel(NioServerSocketChannel.class) // (3)
+            .childHandler(new ChannelInitializer<SocketChannel>() { // (4)
+                @Override
+                public void initChannel(SocketChannel ch) throws Exception {
+                    ChannelPipeline p = ch.pipeline();
+                    if (sslCtx != null) {
+                        p.addLast("tls", sslCtx.newHandler(ch.alloc()));
+                    }
+                    p.addLast(new ServerHandler());
+                }
+            })
+            .option(ChannelOption.SO_BACKLOG, 128)          // (5)
+            .childOption(ChannelOption.SO_KEEPALIVE, true) // (6)
+            .childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true));
 
+        // Bind and start to accept incoming connections.
+        ChannelFuture f = b.bind(port).sync(); // (7)
 
-    public Server(int port) {
-        this.port = port;
+        return f;
     }
 
     public void run() throws Exception {
@@ -37,30 +56,19 @@ public class Server {
         EventLoopGroup bossGroup = new NioEventLoopGroup(); // (1)
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
-            ServerBootstrap b = new ServerBootstrap(); // (2)
-            b.group(bossGroup, workerGroup)
-             .channel(NioServerSocketChannel.class) // (3)
-             .childHandler(new ChannelInitializer<SocketChannel>() { // (4)
-                 @Override
-                 public void initChannel(SocketChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     if (s_doSsl) {
-                         p.addLast("tls", sslCtx.newHandler(ch.alloc()));
-                     }
-                     p.addLast(new ServerHandler());
-                 }
-             })
-             .option(ChannelOption.SO_BACKLOG, 128)          // (5)
-             .childOption(ChannelOption.SO_KEEPALIVE, true) // (6)
-             .childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true));
+            ChannelFuture f1 = runListener(bossGroup, workerGroup, 5000, null);
+            System.out.println("Listening on *:5000");
 
-            // Bind and start to accept incoming connections.
-            ChannelFuture f = b.bind(port).sync(); // (7)
+            ChannelFuture f2 = runListener(bossGroup, workerGroup, 5001, sslCtx);
+            System.out.println("Listening on *:5001 (ssl)");
+
+            System.out.println("Server running");
 
             // Wait until the server socket is closed.
             // In this example, this does not happen, but you can do that to gracefully
             // shut down your server.
-            f.channel().closeFuture().sync();
+            f1.channel().closeFuture().sync();
+            f2.channel().closeFuture().sync();
         } finally {
             workerGroup.shutdownGracefully();
             bossGroup.shutdownGracefully();
@@ -68,12 +76,6 @@ public class Server {
     }
 
     public static void main(String[] args) throws Exception {
-        int port;
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        } else {
-            port = 5000;
-        }
-        new Server(port).run();
+        new Server().run();
     }
 }
