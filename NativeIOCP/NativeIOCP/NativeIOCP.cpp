@@ -4,9 +4,8 @@
 #include "stdafx.h"
 
 #define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
-#define PIPELINED_RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE
 
-const char s_responseMessage[] = PIPELINED_RESPONSE;
+const char s_responseMessage[] = RESPONSE;
 const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude trailing null
 
 const int s_expectedReadSize = 2624;
@@ -82,6 +81,7 @@ private:
 	SOCKET _socket;
 	BOOL _isSsl;
 	int _totalBytesRead;
+	int _sends;
 
 	OverlappedHelper _readHelper;
 	OverlappedHelper _writeHelper;
@@ -221,6 +221,12 @@ private:
 
 		// CONSIDER: May need to loop on read, probably isn't necessary for benchmarking
 
+		_sends = 0;
+		DoWrite();
+	}
+
+	void DoWrite()
+	{
 		WSABUF wbuf;
 		wbuf.buf = (CHAR*)s_responseMessage;
 		wbuf.len = s_responseMessageLength;
@@ -250,6 +256,7 @@ private:
 
 	void OnWrite(DWORD dwErrorCode, DWORD bytesWritten)
 	{
+		_sends++;
 		if (dwErrorCode != 0)
 		{
 			// Just assume this is a connection reset, and stop processing the connection
@@ -274,7 +281,14 @@ private:
 		}
 
 		_totalBytesRead = 0;
-		DoRead();
+		if (_sends < 16)
+		{
+			DoWrite();
+		}
+		else
+		{
+			DoRead();
+		}
 	}
 
 	void Shutdown()
