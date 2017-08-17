@@ -18,7 +18,7 @@ namespace SocketEvents
         public static readonly GCHandle s_responseMessageGCHandle = GCHandle.Alloc(s_responseMessage, GCHandleType.Pinned);
         public static readonly unsafe byte* s_responseMessagePtr = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(s_responseMessage, 0);
 
-        public const int s_expectedReadSize = 848;
+        public const int s_expectedReadSize = 2624;
 
         private static SocketAsyncEventArgs s_acceptEventArgs;
 

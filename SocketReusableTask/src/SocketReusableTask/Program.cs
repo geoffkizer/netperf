@@ -14,7 +14,7 @@ namespace SocketReusableTask
 
         public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
-        public const int s_expectedReadSize = 848;
+        public const int s_expectedReadSize = 2624;
 
         class Connection
         {
