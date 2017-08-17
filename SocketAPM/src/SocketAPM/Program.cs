@@ -12,23 +12,7 @@ namespace SocketAPM
 
         public const bool s_trace = false;
 
-        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
+        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
         public const int s_expectedReadSize = 848;
 
@@ -40,6 +24,7 @@ namespace SocketAPM
 
             private Socket _socket;
             private byte[] _readBuffer = new byte[4096];
+            private int _sendCount;
 
             public Connection()
             {
@@ -145,12 +130,18 @@ namespace SocketAPM
                 }
 
                 // Do write now
+                _sendCount = 0;
+                DoWrite();
+            }
 
+            private void DoWrite()
+            {
                 _socket.BeginSend(s_responseMessage, 0, s_responseMessage.Length, SocketFlags.None, _writeCallback, null);
             }
 
             private void OnWrite(IAsyncResult ar)
             {
+                _sendCount++;
                 if (s_trace)
                 {
                     if (ar.CompletedSynchronously)
@@ -171,7 +162,14 @@ namespace SocketAPM
                     throw new Exception(string.Format("unexpected write size, bytesWritten = {0}", bytesWritten));
                 }
 
-                DoRead();
+                if (_sendCount < 16)
+                {
+                    DoWrite();
+                }
+                else
+                {
+                    DoRead();
+                }
             }
         }
 
