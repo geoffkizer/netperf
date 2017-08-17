@@ -15,7 +15,7 @@ namespace Client
         public static IPAddress s_ipAddress = IPAddress.Loopback;
         public static int s_port = 5000;
 
-        public static readonly byte[] s_requestMessage = Encoding.UTF8.GetBytes("GET /plaintext HTTP/1.1\r\nHost: examp.com\r\nAccept: text/plain,text/html;q=0.9,application/xhtml+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7\r\nConnection: keep-alive\r\n\r\n");
+        public static readonly byte[] s_requestMessage = Encoding.UTF8.GetBytes("GET /plaintext HTTP/1.1\r\nHost: localhost\r\nAccept: text/plain,text/html;q=0.9,application/xhtml+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7\r\nConnection: keep-alive\r\n\r\n");
 
         public const int s_expectedReadSize = 2160;
 
