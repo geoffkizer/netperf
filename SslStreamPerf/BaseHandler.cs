@@ -79,7 +79,7 @@ namespace SslStreamPerf
             _stream.Dispose();
         }
 
-        [Conditional("TRACE")]
+        [Conditional("PERFTRACE")]
         protected void Trace(string s)
         {
             Console.WriteLine(s);

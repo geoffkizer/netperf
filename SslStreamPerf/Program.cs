@@ -1,14 +1,25 @@
-﻿using System;
+﻿using CommandLine;
+using System;
 using System.Threading;
 
 namespace SslStreamPerf
 {
     class Program
     {
-        const int clientCount = 16;
-        const int messageSize = 2048;
-        const int warmupTime = 5;      // Seconds
-        const int interval = 3;        // Seconds
+        private class Options
+        {
+            [Option('c', "clients", Default = 16)]
+            public int Clients { get; set; }
+
+            [Option('m', "messageSize", Default = 2048)]
+            public int MessageSize { get; set; }
+
+            [Option('w', "warmupTime", Default = 5)]            // Seconds
+            public int WarmupTime { get; set; }
+
+            [Option('i', "reportingInterval", Default = 3)]     // Seconds
+            public int ReportingInterval { get; set; }
+        }
 
         static int GetCurrentRequestCount(ClientHandler[] clientHandlers)
         {
@@ -21,25 +32,29 @@ namespace SslStreamPerf
             return total;
         }
 
-        static void ShowResults(ClientHandler[] clientHandlers)
+        static void ShowResults(Options options, ClientHandler[] clientHandlers)
         {
-            Console.WriteLine($"Test running");
+            Console.WriteLine($"Test running with {options.Clients} clients and MessageSize={options.MessageSize}");
 
-            Console.WriteLine($"Waiting {warmupTime} seconds for warmup");
-            Thread.Sleep(warmupTime * 1000);
-            Console.WriteLine("Warmup complete");
+            int countAfterWarmup = 0;
+            if (options.WarmupTime != 0)
+            {
+                Console.WriteLine($"Waiting {options.WarmupTime} seconds for warmup");
+                Thread.Sleep(options.WarmupTime * 1000);
+                Console.WriteLine("Warmup complete");
+                countAfterWarmup = GetCurrentRequestCount(clientHandlers);
+            }
 
             int elapsed = 0;
-            int countAfterWarmup = GetCurrentRequestCount(clientHandlers);
             int previousCount = countAfterWarmup;
             while (true)
             {
-                Thread.Sleep(interval * 1000);
+                Thread.Sleep(options.ReportingInterval * 1000);
 
-                elapsed += interval;
+                elapsed += options.ReportingInterval;
                 int currentCount = GetCurrentRequestCount(clientHandlers);
 
-                double currentRPS = (currentCount - previousCount) / (double)interval;
+                double currentRPS = (currentCount - previousCount) / (double)options.ReportingInterval;
                 double averageRPS = (currentCount - countAfterWarmup) / (double)elapsed;
 
                 Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
@@ -48,13 +63,25 @@ namespace SslStreamPerf
             }
         }
 
-        static void Main(string[] args)
+        static int Run(Options options)
         {
-            var clientHandlers = InProcTest.Start(16, 2048);
-            ShowResults(clientHandlers);
+            var clientHandlers = InProcTest.Start(options.Clients, options.MessageSize);
+            ShowResults(options, clientHandlers);
 
-//            SslTest();
-//            StreamTest.Run();
+            return 1;
+        }
+
+        static int Main(string[] args)
+        {
+            var parser = new Parser(settings =>
+            {
+                settings.HelpWriter = Console.Out;
+            });
+
+            return parser.ParseArguments<Options>(args).MapResult(
+                options => Run(options),
+                _ => 1
+            );
         }
     }
 }
