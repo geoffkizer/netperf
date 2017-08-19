@@ -1,35 +1,59 @@
 ﻿using System;
-using System.IO;
-using System.Text;
-using System.Threading.Tasks;
-using System.Net.Security;
+using System.Threading;
 
 namespace SslStreamPerf
 {
     class Program
     {
-        static void SslTest()
+        const int clientCount = 16;
+        const int messageSize = 2048;
+        const int warmupTime = 5;      // Seconds
+        const int interval = 3;        // Seconds
+
+        static int GetCurrentRequestCount(ClientHandler[] clientHandlers)
         {
-            var cert = SslHelper.LoadCert();
+            int total = 0;
+            foreach (var c in clientHandlers)
+            {
+                total += c.RequestCount;
+            }
 
-            Stream s1, s2;
+            return total;
+        }
 
-            (s1, s2) = ProducerConsumerStream.Create();
+        static void ShowResults(ClientHandler[] clientHandlers)
+        {
+            Console.WriteLine($"Test running");
 
-            Task<SslStream> t1 = SslHelper.GetClientStream(s1);
-            Task<SslStream> t2 = SslHelper.GetServerStream(s2, cert);
+            Console.WriteLine($"Waiting {warmupTime} seconds for warmup");
+            Thread.Sleep(warmupTime * 1000);
+            Console.WriteLine("Warmup complete");
 
-            Task.WaitAll(t1, t2);
+            int elapsed = 0;
+            int countAfterWarmup = GetCurrentRequestCount(clientHandlers);
+            int previousCount = countAfterWarmup;
+            while (true)
+            {
+                Thread.Sleep(interval * 1000);
 
-            s1 = t1.Result;
-            s2 = t2.Result;
+                elapsed += interval;
+                int currentCount = GetCurrentRequestCount(clientHandlers);
 
-            Task.WaitAll(StreamTest.RunClient(s1), StreamTest.RunServer(s2));
+                double currentRPS = (currentCount - previousCount) / (double)interval;
+                double averageRPS = (currentCount - countAfterWarmup) / (double)elapsed;
+
+                Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+
+                previousCount = currentCount;
+            }
         }
 
         static void Main(string[] args)
         {
-            SslTest();
+            var clientHandlers = InProcTest.Start(16, 2048);
+            ShowResults(clientHandlers);
+
+//            SslTest();
 //            StreamTest.Run();
         }
     }

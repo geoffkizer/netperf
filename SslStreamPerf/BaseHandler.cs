@@ -31,14 +31,19 @@ namespace SslStreamPerf
 
         private bool TryReadMessage()
         {
-            int index = Array.IndexOf<byte>(_readBuffer, 0, _readOffset, _readCount);
-            if (index < -1)
+            if (_readCount == 0)
             {
                 return false;
             }
 
-            _readOffset += index;
-            _readCount -= index;
+            int index = Array.IndexOf<byte>(_readBuffer, 0, _readOffset, _readCount);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            _readOffset += index + 1;
+            _readCount -= index + 1;
             return true;
         }
 
