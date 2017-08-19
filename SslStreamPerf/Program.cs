@@ -65,6 +65,8 @@ namespace SslStreamPerf
 
         static int Run(Options options)
         {
+            Console.WriteLine("Starting up...");
+
             var cert = SslHelper.LoadCert();
             var clientHandlers = InProcTest.Start(cert, options.Clients, options.MessageSize);
             ShowResults(options, clientHandlers);

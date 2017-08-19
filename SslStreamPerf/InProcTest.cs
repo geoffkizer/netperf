@@ -19,10 +19,14 @@ namespace SslStreamPerf
         {
             (var s1, var s2) = ProducerConsumerStream.Create();
 
-            var clientHandler = new ClientHandler(await SslHelper.GetClientStream(s1), messageSize);
+            var t1 = SslHelper.GetClientStream(s1);
+            var t2 = SslHelper.GetServerStream(s2, cert);
+            await Task.WhenAll(t1, t2);
+
+            var clientHandler = new ClientHandler(t1.Result, messageSize);
             SpawnTask(() => clientHandler.Run());
 
-            var serverHandler = new ServerHandler(await SslHelper.GetServerStream(s2, cert), messageSize);
+            var serverHandler = new ServerHandler(t2.Result, messageSize);
             SpawnTask(() => serverHandler.Run());
 
             return clientHandler;
@@ -37,7 +41,7 @@ namespace SslStreamPerf
                 tasks[i] = StartOneAsync(cert, messageSize);
             }
 
-            Task.WaitAll(tasks);
+            Task.WhenAll(tasks).Wait();
 
             return tasks.Select(t => t.Result).ToArray();
         }
