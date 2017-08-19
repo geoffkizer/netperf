@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 
 namespace SslStreamPerf
 {
@@ -15,7 +13,7 @@ namespace SslStreamPerf
             Task.Run(a);
         }
 
-        private static async Task<ClientHandler> StartOneAsync(X509Certificate2 cert, int messageSize)
+        private static async Task<(ClientHandler clientHandler, ServerHandler serverHandler)> StartOneAsync(X509Certificate2 cert, int messageSize)
         {
             (var s1, var s2) = ProducerConsumerStream.Create();
 
@@ -24,26 +22,27 @@ namespace SslStreamPerf
             await Task.WhenAll(t1, t2);
 
             var clientHandler = new ClientHandler(t1.Result, messageSize);
-            SpawnTask(() => clientHandler.Run());
-
             var serverHandler = new ServerHandler(t2.Result, messageSize);
-            SpawnTask(() => serverHandler.Run());
 
-            return clientHandler;
+            return (clientHandler, serverHandler);
         }
 
         public static ClientHandler[] Start(X509Certificate2 cert, int clientCount, int messageSize)
         {
-            var tasks = new Task<ClientHandler>[clientCount];
+            var tasks = Enumerable.Range(0, clientCount)
+                            .Select(_ => StartOneAsync(cert, messageSize))
+                            .ToArray();
 
-            for (int i = 0; i < clientCount; i++)
+            Task.WaitAll(tasks);
+
+            var handlers = tasks.Select(t => t.Result);
+            foreach (var h in handlers)
             {
-                tasks[i] = StartOneAsync(cert, messageSize);
+                SpawnTask(() => h.clientHandler.Run());
+                SpawnTask(() => h.serverHandler.Run());
             }
 
-            Task.WhenAll(tasks).Wait();
-
-            return tasks.Select(t => t.Result).ToArray();
+            return handlers.Select(x => x.clientHandler).ToArray();
         }
     }
 }
