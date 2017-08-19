@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <NETCoreAppMaximumVersion>2.1</NETCoreAppMaximumVersion>
+    <RuntimeFrameworkVersion>2.1.0-preview2-25609-01</RuntimeFrameworkVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="contoso.com.pfx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.1.1-beta" />
+  </ItemGroup>
+
+</Project>

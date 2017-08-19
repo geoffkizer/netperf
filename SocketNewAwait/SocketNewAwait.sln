@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{331B9008-B314-415F-85B5-2A568D1DB4E7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9A31F71D-6D32-4FAD-B220-BCC0B649AD18}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "SocketNewAwait", "src\SocketNewAwait\SocketNewAwait.xproj", "{D91725B6-5AD0-4A52-820E-3B8E5B146A95}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D91725B6-5AD0-4A52-820E-3B8E5B146A95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D91725B6-5AD0-4A52-820E-3B8E5B146A95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D91725B6-5AD0-4A52-820E-3B8E5B146A95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D91725B6-5AD0-4A52-820E-3B8E5B146A95}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D91725B6-5AD0-4A52-820E-3B8E5B146A95} = {331B9008-B314-415F-85B5-2A568D1DB4E7}
+	EndGlobalSection
+EndGlobal
