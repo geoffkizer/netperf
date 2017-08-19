@@ -1,22 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace SslStreamPerf
 {
-    public sealed class MemoryPipeStream : Stream, IDisposable
+    public sealed class ProducerConsumerStream : Stream, IDisposable
     {
-        private MemoryPipeStream _partner;
+        private ProducerConsumerStream _partner;
         private TaskCompletionSource<ArraySegment<byte>> _readSignal;
         private TaskCompletionSource<bool> _writeSignal;
         private ArraySegment<byte> _bytes;
         private bool _isClosed;
 
-        private MemoryPipeStream()
+        private ProducerConsumerStream()
         {
             _readSignal = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
             _writeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -27,10 +25,10 @@ namespace SslStreamPerf
             _isClosed = false;
         }
 
-        public static (MemoryPipeStream stream1, MemoryPipeStream stream2) Create()
+        public static (ProducerConsumerStream stream1, ProducerConsumerStream stream2) Create()
         {
-            var s1 = new MemoryPipeStream();
-            var s2 = new MemoryPipeStream();
+            var s1 = new ProducerConsumerStream();
+            var s2 = new ProducerConsumerStream();
             s1._partner = s2;
             s2._partner = s1;
 

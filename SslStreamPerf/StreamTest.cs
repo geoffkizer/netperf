@@ -28,7 +28,7 @@ namespace SslStreamPerf
             Console.WriteLine($"{name}: Received '{Encoding.UTF8.GetString(readBuffer, 0, bytesRead)}'");
         }
 
-        static async Task RunClient(Stream s)
+        public static async Task RunClient(Stream s)
         {
             using (s)
             {
@@ -39,7 +39,7 @@ namespace SslStreamPerf
             }
         }
 
-        static async Task RunServer(Stream s)
+        public static async Task RunServer(Stream s)
         {
             using (s)
             {
@@ -52,7 +52,7 @@ namespace SslStreamPerf
 
         static async Task TestStreams()
         {
-            (var s1, var s2) = MemoryPipeStream.Create();
+            (var s1, var s2) = ProducerConsumerStream.Create();
 
             var t1 = RunServer(s1);
             await Task.Delay(50);
@@ -63,7 +63,7 @@ namespace SslStreamPerf
 
         static async Task TestStreams2()
         {
-            (var s1, var s2) = MemoryPipeStream.Create();
+            (var s1, var s2) = ProducerConsumerStream.Create();
 
             var t1 = RunClient(s1);
             await Task.Delay(50);
