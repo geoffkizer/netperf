@@ -1,30 +1,45 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SslStreamPerf
 {
     internal static class InProcTest
     {
-        public static ClientHandler[] Start(int clientCount, int messageSize)
+        // Avoid compiler warning
+        private static void SpawnTask(Func<Task> a)
         {
-            var clientHandlers = new ClientHandler[clientCount];
+            Task.Run(a);
+        }
+
+        private static async Task<ClientHandler> StartOneAsync(X509Certificate2 cert, int messageSize)
+        {
+            (var s1, var s2) = ProducerConsumerStream.Create();
+
+            var clientHandler = new ClientHandler(await SslHelper.GetClientStream(s1), messageSize);
+            SpawnTask(() => clientHandler.Run());
+
+            var serverHandler = new ServerHandler(await SslHelper.GetServerStream(s2, cert), messageSize);
+            SpawnTask(() => serverHandler.Run());
+
+            return clientHandler;
+        }
+
+        public static ClientHandler[] Start(X509Certificate2 cert, int clientCount, int messageSize)
+        {
+            var tasks = new Task<ClientHandler>[clientCount];
 
             for (int i = 0; i < clientCount; i++)
             {
-                (var s1, var s2) = ProducerConsumerStream.Create();
-
-                var clientHandler = new ClientHandler(s1, messageSize);
-                Task.Run(() => clientHandler.Run());
-
-                var serverHandler = new ServerHandler(s2, messageSize);
-                Task.Run(() => serverHandler.Run());
-
-                clientHandlers[i] = clientHandler;
+                tasks[i] = StartOneAsync(cert, messageSize);
             }
 
-            return clientHandlers;
+            Task.WaitAll(tasks);
+
+            return tasks.Select(t => t.Result).ToArray();
         }
     }
 }
