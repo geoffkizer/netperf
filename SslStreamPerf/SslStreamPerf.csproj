@@ -3,9 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <ServerGarbageCollection>true</ServerGarbageCollection>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
-    <NETCoreAppMaximumVersion>2.1</NETCoreAppMaximumVersion>
-    <RuntimeFrameworkVersion>2.1.0-preview2-25609-01</RuntimeFrameworkVersion>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
