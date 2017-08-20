@@ -59,7 +59,9 @@ namespace SslStreamPerf
             var handlers = tasks.Select(t => t.Result);
             foreach (var h in handlers)
             {
+                Thread.Sleep(50);
                 SpawnTask(() => h.clientHandler.Run());
+                Thread.Sleep(50);
                 SpawnTask(() => h.serverHandler.Run());
             }
 
