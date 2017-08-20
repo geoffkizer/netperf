@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace SslStreamPerf
 {
@@ -43,7 +44,7 @@ namespace SslStreamPerf
         public static ClientHandler[] Start(X509Certificate2 cert, int clientCount, int messageSize)
         {
             var tasks = Enumerable.Range(0, clientCount)
-                            .Select(_ => StartOneAsync(cert, messageSize))
+                            .Select(_ => { Thread.Sleep(50); return StartOneAsync(cert, messageSize); })
                             .ToArray();
 
             Console.WriteLine("Tasks created, about to wait on them");
