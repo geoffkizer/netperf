@@ -17,9 +17,17 @@ namespace SslStreamPerf
         {
             (var s1, var s2) = ProducerConsumerStream.Create();
 
+            Console.WriteLine("About to call GetClientStream");
+
             var t1 = SslHelper.GetClientStream(s1);
+
+            Console.WriteLine("About to call GetServerStream");
+
             var t2 = SslHelper.GetServerStream(s2, cert);
             var delay = Task.Delay(10000);
+
+
+            Console.WriteLine("About to wait on stream tasks with timeout");
             var completed = await Task.WhenAny(Task.WhenAll(t1, t2), delay);
             if (completed == delay)
             {
@@ -38,10 +46,14 @@ namespace SslStreamPerf
                             .Select(_ => StartOneAsync(cert, messageSize))
                             .ToArray();
 
+            Console.WriteLine("Tasks created, about to wait on them");
+
             foreach (var t in tasks)
             {
                 t.Wait();
             }
+
+            Console.WriteLine("Completed wait for all tasks");
 
             var handlers = tasks.Select(t => t.Result);
             foreach (var h in handlers)
