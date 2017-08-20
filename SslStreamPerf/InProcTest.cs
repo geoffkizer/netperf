@@ -19,7 +19,12 @@ namespace SslStreamPerf
 
             var t1 = SslHelper.GetClientStream(s1);
             var t2 = SslHelper.GetServerStream(s2, cert);
-            await Task.WhenAll(t1, t2);
+            var delay = Task.Delay(10000);
+            var completed = await Task.WhenAny(Task.WhenAll(t1, t2), delay);
+            if (completed == delay)
+            {
+                Console.WriteLine($"Establishing SSL connection timed out.  Client complete={t1.IsCompleted}, Server complete={t2.IsCompleted}");
+            }
 
             var clientHandler = new ClientHandler(t1.Result, messageSize);
             var serverHandler = new ServerHandler(t2.Result, messageSize);
@@ -33,7 +38,10 @@ namespace SslStreamPerf
                             .Select(_ => StartOneAsync(cert, messageSize))
                             .ToArray();
 
-            Task.WaitAll(tasks);
+            foreach (var t in tasks)
+            {
+                t.Wait();
+            }
 
             var handlers = tasks.Select(t => t.Result);
             foreach (var h in handlers)
