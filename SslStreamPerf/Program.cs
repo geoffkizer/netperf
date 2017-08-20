@@ -19,6 +19,9 @@ namespace SslStreamPerf
 
             [Option('i', "reportingInterval", Default = 3)]     // Seconds
             public int ReportingInterval { get; set; }
+
+            [Option('l', "useLoopback", Default = false)]     // Seconds
+            public bool UseLoopback { get; set; }
         }
 
         static int GetCurrentRequestCount(ClientHandler[] clientHandlers)
@@ -68,7 +71,19 @@ namespace SslStreamPerf
             Console.WriteLine("Starting up...");
 
             var cert = SslHelper.LoadCert();
-            var clientHandlers = InProcTest.Start(cert, options.Clients, options.MessageSize);
+
+            ClientHandler[] clientHandlers;
+            if (options.UseLoopback)
+            {
+                Console.WriteLine("Running in-process over loopback");
+                clientHandlers = LoopbackTest.Start(cert, options.Clients, options.MessageSize);
+            }
+            else
+            {
+                Console.WriteLine("Running in-process over in-memory stream");
+                clientHandlers = InProcTest.Start(cert, options.Clients, options.MessageSize);
+            }
+
             ShowResults(options, clientHandlers);
 
             return 1;
