@@ -29,9 +29,9 @@ namespace SslStreamPerf
                     await SendMessage();
                 }
             }
-            catch (Exception e)
+            catch (IOException e)
             {
-                Trace($"Caught exception {e} in ServerHandler");
+                Trace($"Caught IO exception {e} in ServerHandler");
                 Dispose();
                 return;
             }

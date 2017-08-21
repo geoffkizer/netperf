@@ -36,9 +36,9 @@ namespace SslStreamPerf
                     _requestCount++;
                 }
             }
-            catch (Exception e)
+            catch (IOException e)
             {
-                Trace($"Caught exception {e} in ClientHandler");
+                Trace($"Caught IO exception {e} in ClientHandler");
                 Dispose();
                 return;
             }

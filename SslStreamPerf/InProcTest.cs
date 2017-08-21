@@ -10,7 +10,17 @@ namespace SslStreamPerf
         // Avoid compiler warning
         private static void SpawnTask(Func<Task> a)
         {
-            Task.Run(a);
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await a();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Caught exception in detached task: {e}");
+                }
+            });
         }
 
         private static async Task<(ClientHandler clientHandler, ServerHandler serverHandler)> StartOneAsync(X509Certificate2 cert, int messageSize)
