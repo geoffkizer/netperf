@@ -11,9 +11,8 @@ void QueueConnectionHandler();
 SOCKET s_listenSocket = INVALID_SOCKET;
 
 #define RESPONSE "HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n"
-#define PIPELINED_RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE RESPONSE
 
-const char s_responseMessage[] = PIPELINED_RESPONSE;
+const char s_responseMessage[] = RESPONSE;
 const int s_responseMessageLength = sizeof(s_responseMessage) - 1; // exclude trailing null
 
 const int s_expectedReadSize = 2624;
@@ -30,7 +29,8 @@ class Connection : OVERLAPPED
 private:
 	SOCKET _socket;
 	BYTE _readBuffer[4096];
-	
+	int _sends;
+
 	enum State
 	{
 		IsReading = 0,
@@ -172,6 +172,12 @@ private:
 
 		_state = IsWriting;
 
+		_sends = 0;
+		DoWrite();
+	}
+
+	void DoWrite()
+	{
 		WSABUF wbuf;
 		wbuf.buf = (CHAR*)s_responseMessage;
 		wbuf.len = s_responseMessageLength;
@@ -196,6 +202,7 @@ private:
 
 	void OnWriteComplete(int bytesWritten)
 	{
+		_sends++;
 		if (s_trace)
 		{
 			printf("Write complete, bytesRead = %u\n", bytesWritten);
@@ -209,7 +216,14 @@ private:
 
 		// CONSIDER: May need to loop on write, probably isn't necessary for benchmarking
 
-		DoRead();
+		if (_sends < 16)
+		{
+			DoWrite();
+		}
+		else
+		{
+			DoRead();
+		}
 	}
 
 	void OnCompletion(DWORD dwErrorCode, DWORD dwNumberofBytesTransferred)

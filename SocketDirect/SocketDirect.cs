@@ -13,28 +13,12 @@ namespace SocketEvents
 
         public const bool s_trace = false;
 
-        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes(
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n" +
-            "HTTP/1.1 200 OK\r\nServer: TestServer\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
+        public static readonly byte[] s_responseMessage = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nServer: TestServer\r\nDate: Sun, 06 Nov 1994 08:49:37 GMT\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nhello world\r\n");
 
         public static readonly GCHandle s_responseMessageGCHandle = GCHandle.Alloc(s_responseMessage, GCHandleType.Pinned);
         public static readonly unsafe byte* s_responseMessagePtr = (byte*)Marshal.UnsafeAddrOfPinnedArrayElement(s_responseMessage, 0);
 
-        public const int s_expectedReadSize = 848;
+        public const int s_expectedReadSize = 2624;
 
         private static SocketAsyncEventArgs s_acceptEventArgs;
 
@@ -48,6 +32,7 @@ namespace SocketEvents
 
             private SocketDirect.OverlappedHandle _receiveOverlapped;
             private SocketDirect.OverlappedHandle _sendOverlapped;
+            private int _sendCount;
 
             public Connection(Socket socket)
             {
@@ -130,7 +115,12 @@ namespace SocketEvents
 #endif
 
                 // Do write now
+                _sendCount = 0;
+                DoWrite();
+            }
 
+            private void DoWrite()
+            {
                 int bytesTransferred;
                 SocketFlags socketFlags = SocketFlags.None;
                 socketError = SocketDirect.Send(
@@ -153,6 +143,7 @@ namespace SocketEvents
 
             private unsafe void OnWrite(int errorCode, int bytesWritten)
             {
+                _sendCount++;
                 SocketError socketError = (SocketError)errorCode;
 
                 if (socketError != SocketError.Success)
@@ -170,7 +161,14 @@ namespace SocketEvents
                     Console.WriteLine("Write complete, bytesWritten = {0}", bytesWritten);
                 }
 
-                DoRead();
+                if (_sendCount < 16)
+                {
+                    DoWrite();
+                }
+                else
+                {
+                    DoRead();
+                }
             }
         }
 
