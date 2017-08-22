@@ -189,6 +189,7 @@ ClientBin/
 *.dbmdl
 *.dbproj.schemaview
 *.pfx
+!AspNetCore/*.pfx
 *.publishsettings
 node_modules/
 orleans.codegen.cs
