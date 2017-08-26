@@ -28,6 +28,12 @@ namespace SslStreamPerf
 
             [Option('i', "reportingInterval", Default = 3)]     // Seconds
             public int ReportingInterval { get; set; }
+
+            [Option('n', "numberOfRequests", Default = 0, HelpText = "Total number of requests if positive number")]      // count
+            public int NumberOfRequests { get; set; }
+
+            [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds if positive number")]          // seconds
+            public int DurationTime { get; set; }
         }
 
         [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
@@ -115,19 +121,38 @@ namespace SslStreamPerf
 
             int elapsed = 0;
             int previousCount = countAfterWarmup;
+            int ReportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval : 1;
+            double currentRPS;
+            double averageRPS;
+
             while (true)
             {
-                Thread.Sleep(options.ReportingInterval * 1000);
+                Thread.Sleep(ReportingInterval * 1000);
 
-                elapsed += options.ReportingInterval;
+                elapsed += ReportingInterval;
                 int currentCount = GetCurrentRequestCount(clientHandlers);
 
-                double currentRPS = (currentCount - previousCount) / (double)options.ReportingInterval;
-                double averageRPS = (currentCount - countAfterWarmup) / (double)elapsed;
+                currentRPS = (currentCount - previousCount) / (double)options.ReportingInterval;
+                averageRPS = (currentCount - countAfterWarmup) / (double)elapsed;
 
-                Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+                if (options.ReportingInterval > 0)
+                {
+                    Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+                }
 
                 previousCount = currentCount;
+
+                if ( options.NumberOfRequests > 0 && options.NumberOfRequests <= currentCount ) {
+                    break;
+                }
+                if ( options.DurationTime > 0 && options.DurationTime <= elapsed ) {
+                    break;
+                }
+            }
+            if (options.ReportingInterval <= 0)
+            {
+                // write out final stats if we are asked not to do it interactively.
+                Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Average RPS: {averageRPS:0.0}");
             }
         }
 
