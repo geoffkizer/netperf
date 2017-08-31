@@ -12,9 +12,6 @@ namespace SslStreamPerf
     {
         private class BaseOptions
         {
-            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
-            public int MessageSize { get; set; }
-
             [Option("ssl", Default = false, HelpText = "Use SSL")]
             public bool UseSsl { get; set; }
         }
@@ -23,6 +20,9 @@ namespace SslStreamPerf
         {
             [Option('c', "connections", Default = 256)]
             public int Clients { get; set; }
+
+            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
+            public int MessageSize { get; set; }
 
             [Option('w', "warmupTime", Default = 5)]            // Seconds
             public int WarmupTime { get; set; }
@@ -193,7 +193,7 @@ namespace SslStreamPerf
 
             Console.WriteLine($"Running server on {endPoint}");
 
-            IPEndPoint serverEndpoint = ServerListener.Run(endPoint, GetX509Certificate(options), options.MessageSize);
+            IPEndPoint serverEndpoint = ServerListener.Run(endPoint, GetX509Certificate(options));
 
             Console.WriteLine($"Server running");
 
@@ -206,7 +206,7 @@ namespace SslStreamPerf
         {
             Console.WriteLine("Running in-process over loopback");
 
-            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options), options.MessageSize);
+            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options));
 
             ClientHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
 

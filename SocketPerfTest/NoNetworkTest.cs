@@ -25,7 +25,7 @@ namespace SslStreamPerf
             }
 
             var clientHandler = new ClientHandler(s1, messageSize);
-            var serverHandler = new ServerHandler(s2, messageSize);
+            var serverHandler = new ServerHandler(s2);
 
             return (clientHandler, serverHandler);
         }

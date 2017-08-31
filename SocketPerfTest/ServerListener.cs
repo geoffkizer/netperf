@@ -10,7 +10,7 @@ namespace SslStreamPerf
 {
     internal static class ServerListener
     {
-        private static async Task RunServer(Socket listen, X509Certificate2 cert, int messageSize)
+        private static async Task RunServer(Socket listen, X509Certificate2 cert)
         {
             while (true)
             {
@@ -24,20 +24,20 @@ namespace SslStreamPerf
                         s = await SslHelper.GetServerStream(s, cert);
                     }
 
-                    var serverHandler = new ServerHandler(s, messageSize);
+                    var serverHandler = new ServerHandler(s);
                     await serverHandler.Run();
                 });
             }
         }
 
         // Returns IPEndPoint so that if port was 0 (autoselect), caller can get the port in use.
-        public static IPEndPoint Run(IPEndPoint endPoint, X509Certificate2 cert, int messageSize)
+        public static IPEndPoint Run(IPEndPoint endPoint, X509Certificate2 cert)
         {
             Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listen.Bind(endPoint);
             listen.Listen(100);
 
-            TaskHelper.SpawnTask(() => RunServer(listen, cert, messageSize));
+            TaskHelper.SpawnTask(() => RunServer(listen, cert));
 
             return (IPEndPoint)listen.LocalEndPoint;
         }
