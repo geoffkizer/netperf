@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using System;
 using System.Threading;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -28,6 +29,12 @@ namespace SslStreamPerf
 
             [Option('i', "reportingInterval", Default = 3)]     // Seconds
             public int ReportingInterval { get; set; }
+
+            [Option('n', "numberOfRequests", Default = 0, HelpText = "Total number of requests if positive number")]      // count
+            public int NumberOfRequests { get; set; }
+
+            [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds if positive number")]          // seconds
+            public int DurationTime { get; set; }
         }
 
         [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
@@ -113,22 +120,45 @@ namespace SslStreamPerf
                 countAfterWarmup = GetCurrentRequestCount(clientHandlers);
             }
 
-            int elapsed = 0;
+            Stopwatch timer = new Stopwatch();
+            long elapsed = 0;   // time in milliseconds
+            long previousElapsed = 0;
             int previousCount = countAfterWarmup;
+            int reportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval :
+                                        options.DurationTime > 0 ? options.DurationTime : 1;
+            double currentRPS;
+            double averageRPS;
+
+            timer.Start();
             while (true)
             {
-                Thread.Sleep(options.ReportingInterval * 1000);
+                Thread.Sleep(reportingInterval * 1000);
 
-                elapsed += options.ReportingInterval;
+                elapsed = timer.ElapsedMilliseconds;
+
                 int currentCount = GetCurrentRequestCount(clientHandlers);
 
-                double currentRPS = (currentCount - previousCount) / (double)options.ReportingInterval;
-                double averageRPS = (currentCount - countAfterWarmup) / (double)elapsed;
+                currentRPS = (currentCount - previousCount) / ((elapsed - previousElapsed)/1000);
+                averageRPS = (currentCount - countAfterWarmup) / ((double)elapsed/1000);
 
-                Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+                if (options.ReportingInterval > 0)
+                {
+                    Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed/1000)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+                }
 
                 previousCount = currentCount;
+                previousElapsed = elapsed;
+
+                if ( options.NumberOfRequests > 0 && options.NumberOfRequests <= currentCount ) {
+                    break;
+                }
+                if ( options.DurationTime > 0 && (options.DurationTime * 1000) <= elapsed ) {
+                    break;
+                }
             }
+            timer.Stop();
+            // write out final stats if we are asked not to do it interactively.
+            Console.WriteLine($"Total elapsed time: {timer.Elapsed}    Average RPS: {averageRPS:0.0} Total requests: {GetCurrentRequestCount(clientHandlers)}");
         }
 
         static X509Certificate2 GetX509Certificate(BaseOptions options) =>
