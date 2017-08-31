@@ -127,7 +127,9 @@ namespace SslStreamPerf
             int reportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval :
                                         options.DurationTime > 0 ? options.DurationTime : 1;
             double currentRPS;
-            double averageRPS;
+            double averageRPS=0;
+            double previousAverageRPS = 0;
+            double drift;
 
             timer.Start();
             while (true)
@@ -139,11 +141,14 @@ namespace SslStreamPerf
                 int currentCount = GetCurrentRequestCount(clientHandlers);
 
                 currentRPS = (currentCount - previousCount) / ((elapsed - previousElapsed)/1000);
+                previousAverageRPS = averageRPS;
                 averageRPS = (currentCount - countAfterWarmup) / ((double)elapsed/1000);
+
+                drift = averageRPS - previousAverageRPS;
 
                 if (options.ReportingInterval > 0)
                 {
-                    Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed/1000)}    Current RPS: {currentRPS:0.0}    Average RPS: {averageRPS:0.0}");
+                    Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed/1000)}    Current RPS: {currentRPS,10:####.0}    Average RPS: {averageRPS,10:####.0} Drift: {drift/averageRPS*100,8:0.00}%");
                 }
 
                 previousCount = currentCount;
