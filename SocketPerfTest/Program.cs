@@ -10,13 +10,7 @@ namespace SslStreamPerf
 {
     class Program
     {
-        private class BaseOptions
-        {
-            [Option("ssl", Default = false, HelpText = "Use SSL")]
-            public bool UseSsl { get; set; }
-        }
-
-        private class BaseClientOptions : BaseOptions
+        private class BaseClientOptions
         {
             [Option('c', "connections", Default = 256)]
             public int Clients { get; set; }
@@ -35,6 +29,9 @@ namespace SslStreamPerf
 
             [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds if positive number")]          // seconds
             public int DurationTime { get; set; }
+
+            [Option("ssl", Default = false, HelpText = "Use SSL")]
+            public bool UseSsl { get; set; }
         }
 
         [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
@@ -45,9 +42,9 @@ namespace SslStreamPerf
         }
 
         [Verb("server", HelpText = "Run server using specified IP/port, e,g, '1.2.3.4:5000'.")]
-        private class ServerOptions : BaseOptions
+        private class ServerOptions
         {
-            [Option('e', "endPoint", Required = true)]
+            [Option('e', "endPoint", Default = "*:5000")]
             public string EndPoint { get; set; }
         }
 
@@ -161,7 +158,7 @@ namespace SslStreamPerf
             Console.WriteLine($"Total elapsed time: {timer.Elapsed}    Average RPS: {averageRPS:0.0} Total requests: {GetCurrentRequestCount(clientHandlers)}");
         }
 
-        static X509Certificate2 GetX509Certificate(BaseOptions options) =>
+        static X509Certificate2 GetX509Certificate(BaseClientOptions options) =>
             options.UseSsl ? SslHelper.LoadCert() : null;
 
         static int RunClient(ClientOptions options)
@@ -191,9 +188,13 @@ namespace SslStreamPerf
                 return -1;
             }
 
-            Console.WriteLine($"Running server on {endPoint}");
+            Console.WriteLine($"Running server on {endPoint} (raw)");
+            ServerListener.Run(endPoint, null);
 
-            IPEndPoint serverEndpoint = ServerListener.Run(endPoint, GetX509Certificate(options));
+            IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
+
+            Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
+            ServerListener.Run(sslEndPoint, SslHelper.LoadCert());
 
             Console.WriteLine($"Server running");
 
