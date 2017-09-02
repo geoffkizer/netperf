@@ -32,7 +32,11 @@ namespace SslStreamPerf
         {
             // Create zero-terminated message of the specified length
             var buffer = new byte[messageSize];
-            Array.Fill(buffer, (byte)0xFF);
+            for (int i = 0; i < messageSize - 1; i++)
+            {
+                buffer[i] = 0xFF;
+            }
+
             buffer[messageSize - 1] = 0;
             return buffer;
         }

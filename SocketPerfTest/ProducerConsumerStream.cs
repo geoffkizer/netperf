@@ -4,6 +4,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+#if !NETCOREAPP1_1
+
 namespace SslStreamPerf
 {
     public sealed class ProducerConsumerStream : Stream, IDisposable
@@ -120,3 +122,4 @@ namespace SslStreamPerf
         public override void SetLength(long value) => throw new NotSupportedException();
     }
 }
+#endif

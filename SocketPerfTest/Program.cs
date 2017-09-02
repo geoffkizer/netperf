@@ -218,11 +218,16 @@ namespace SslStreamPerf
 
         static int RunNoNetwork(NoNetworkOptions options)
         {
+#if NETCOREAPP1_1
+            Console.WriteLine("Not supported on 1.1");
+            Environment.Exit(-1);
+#else
             Console.WriteLine("Running in-process over in-memory stream");
 
             ClientHandler[] clientHandlers = NoNetworkTest.Run(GetX509Certificate(options), options.Clients, options.MessageSize);
 
             ShowResults(options, clientHandlers);
+#endif
 
             return 1;
         }

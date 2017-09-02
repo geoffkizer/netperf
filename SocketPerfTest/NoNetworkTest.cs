@@ -4,6 +4,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.IO;
 
+#if !NETCOREAPP1_1
+
 namespace SslStreamPerf
 {
     internal static class NoNetworkTest
@@ -49,3 +51,4 @@ namespace SslStreamPerf
         }
     }
 }
+#endif

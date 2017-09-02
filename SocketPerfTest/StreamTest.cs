@@ -4,6 +4,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net.Security;
 
+#if !NETCOREAPP1_1
+
 namespace SslStreamPerf
 {
     class StreamTest
@@ -100,3 +102,4 @@ namespace SslStreamPerf
         }
     }
 }
+#endif
