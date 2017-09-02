@@ -48,18 +48,24 @@ namespace SslStreamPerf
             if (index < 0)
             {
                 // Consume all remaining bytes
+                _messageByteCount += _readCount;
+
+                Trace($"Consuming {_readCount} intermediate bytes, _messageByteCount={_messageByteCount}");
+
                 _readOffset = 0;
                 _readCount = 0;
 
-                _messageByteCount += _readCount;
                 return false;
             }
 
             // Consume bytes for this message (including trailing 0)
+            _messageByteCount += index + 1;
+
+            Trace($"Consuming {index + 1} final bytes, _messageByteCount={_messageByteCount}, remaining bytes={_readCount - (index + 1)}");
+
             _readOffset += index + 1;
             _readCount -= index + 1;
 
-            _messageByteCount += index + 1;
             return true;
         }
 
