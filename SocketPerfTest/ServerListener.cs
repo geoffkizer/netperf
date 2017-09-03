@@ -17,6 +17,7 @@ namespace SslStreamPerf
                 Socket accept = await listen.AcceptAsync();
                 TaskHelper.SpawnTask(async () =>
                 {
+                    accept.NoDelay = true;
                     Stream s = new NetworkStream(accept);
 
                     if (cert != null)
