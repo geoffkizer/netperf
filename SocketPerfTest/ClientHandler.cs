@@ -29,10 +29,17 @@ namespace SslStreamPerf
                 {
                     await _stream.WriteAsync(_messageBuffer, 0, _messageBuffer.Length);
 
-                    if (await ReceiveMessage() == 0)
+                    int messageBytes = await ReceiveMessage();
+                    if (messageBytes == 0)
                     {
                         // Server should never terminate the connection.
                         Console.WriteLine("ERROR: Server disconnected");
+                        Environment.Exit(-1);
+                    }
+                    else if (messageBytes != _messageBuffer.Length)
+                    {
+                        // Wrong message size
+                        Console.WriteLine($"ERROR: Expected {_messageBuffer.Length} bytes, received {messageBytes}");
                         Environment.Exit(-1);
                     }
 
