@@ -19,11 +19,12 @@ namespace SslStreamPerf
 
             try
             {
+                int messageByteCount = 0;
                 // Loop, receiving requests and sending responses
                 while (true)
                 {
-                    int messageBytes = await ReceiveMessage();
-                    if (messageBytes == 0)
+                    int count = await _stream.ReadAsync(_readBuffer, 0, _readBuffer.Length);
+                    if (count == 0)
                     {
                         // EOF when trying to receive from client.
                         // Shut down this handler.
@@ -31,24 +32,41 @@ namespace SslStreamPerf
                         return;
                     }
 
-                    if (_messageBuffer == null)
+                    int offset = 0;
+                    while (true)
                     {
-                        // First message received.
-                        // Construct a response message of the same size, and send it
-                        _messageBuffer = CreateMessageBuffer(messageBytes);
-                    }
-                    else
-                    {
-                        // We expect the same size message from the client every time, so check this.
-                        if (messageBytes != _messageBuffer.Length)
+                        int index = Array.IndexOf<byte>(_readBuffer, 0, offset, count);
+                        if (index < 0)
                         {
-                            Trace($"Expected message size {_messageBuffer.Length} but received {messageBytes}");
-                            Dispose();
-                            return;
+                            // Consume all remaining bytes
+                            messageByteCount += count;
+                            break;
                         }
-                    }
 
-                    await _stream.WriteAsync(_messageBuffer, 0, _messageBuffer.Length);
+                        messageByteCount += index + 1;
+                        if (_messageBuffer == null)
+                        {
+                            // First message received.
+                            // Construct a response message of the same size, and send it
+                            _messageBuffer = CreateMessageBuffer(messageByteCount);
+                        }
+                        else
+                        {
+                            // We expect the same size message from the client every time, so check this.
+                            if (messageByteCount != _messageBuffer.Length)
+                            {
+                                Trace($"Expected message size {_messageBuffer.Length} but received {messageByteCount}");
+                                Dispose();
+                                return;
+                            }
+                        }
+
+                        await _stream.WriteAsync(_messageBuffer, 0, _messageBuffer.Length);
+
+                        messageByteCount = 0;
+                        offset += index + 1;
+                        count -= index + 1;
+                    }
                 }
             }
             catch (IOException e)

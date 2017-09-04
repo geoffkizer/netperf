@@ -14,10 +14,10 @@ namespace SslStreamPerf
 
         protected readonly Stream _stream;
 
-        private readonly byte[] _readBuffer;
-        private int _readOffset;
-        private int _readCount;
-        private int _messageByteCount;
+        protected readonly byte[] _readBuffer;
+        protected int _readOffset;
+        protected int _readCount;
+        protected int _messageByteCount;
 
         public BaseHandler(Stream stream)
         {
@@ -41,7 +41,7 @@ namespace SslStreamPerf
             return buffer;
         }
 
-        private bool TryReadMessage()
+        protected bool TryReadMessage()
         {
             if (_readCount == 0)
             {
