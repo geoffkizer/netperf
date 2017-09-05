@@ -4,6 +4,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.IO;
 
+#if !NETCOREAPP1_1
+
 namespace SslStreamPerf
 {
     internal static class NoNetworkTest
@@ -25,7 +27,7 @@ namespace SslStreamPerf
             }
 
             var clientHandler = new ClientHandler(s1, messageSize);
-            var serverHandler = new ServerHandler(s2, messageSize);
+            var serverHandler = new ServerHandler(s2);
 
             return (clientHandler, serverHandler);
         }
@@ -49,3 +51,4 @@ namespace SslStreamPerf
         }
     }
 }
+#endif

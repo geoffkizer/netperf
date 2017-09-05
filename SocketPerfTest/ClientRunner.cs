@@ -15,6 +15,7 @@ namespace SslStreamPerf
             Socket client = new Socket(serverEndpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             await client.ConnectAsync(serverEndpoint);
 
+            client.NoDelay = true;
             Stream s = new NetworkStream(client);
             if (useSsl)
             {

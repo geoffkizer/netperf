@@ -10,19 +10,13 @@ namespace SslStreamPerf
 {
     class Program
     {
-        private class BaseOptions
-        {
-            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
-            public int MessageSize { get; set; }
-
-            [Option("ssl", Default = false, HelpText = "Use SSL")]
-            public bool UseSsl { get; set; }
-        }
-
-        private class BaseClientOptions : BaseOptions
+        private class BaseClientOptions
         {
             [Option('c', "connections", Default = 256)]
             public int Clients { get; set; }
+
+            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
+            public int MessageSize { get; set; }
 
             [Option('w', "warmupTime", Default = 5)]            // Seconds
             public int WarmupTime { get; set; }
@@ -35,6 +29,9 @@ namespace SslStreamPerf
 
             [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds if positive number")]          // seconds
             public int DurationTime { get; set; }
+
+            [Option("ssl", Default = false, HelpText = "Use SSL")]
+            public bool UseSsl { get; set; }
         }
 
         [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
@@ -45,9 +42,9 @@ namespace SslStreamPerf
         }
 
         [Verb("server", HelpText = "Run server using specified IP/port, e,g, '1.2.3.4:5000'.")]
-        private class ServerOptions : BaseOptions
+        private class ServerOptions
         {
-            [Option('e', "endPoint", Required = true)]
+            [Option('e', "endPoint", Default = "*:5000")]
             public string EndPoint { get; set; }
         }
 
@@ -161,7 +158,7 @@ namespace SslStreamPerf
             Console.WriteLine($"Total elapsed time: {timer.Elapsed}    Average RPS: {averageRPS:0.0} Total requests: {GetCurrentRequestCount(clientHandlers)}");
         }
 
-        static X509Certificate2 GetX509Certificate(BaseOptions options) =>
+        static X509Certificate2 GetX509Certificate(BaseClientOptions options) =>
             options.UseSsl ? SslHelper.LoadCert() : null;
 
         static int RunClient(ClientOptions options)
@@ -191,9 +188,13 @@ namespace SslStreamPerf
                 return -1;
             }
 
-            Console.WriteLine($"Running server on {endPoint}");
+            Console.WriteLine($"Running server on {endPoint} (raw)");
+            ServerListener.Run(endPoint, null);
 
-            IPEndPoint serverEndpoint = ServerListener.Run(endPoint, GetX509Certificate(options), options.MessageSize);
+            IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
+
+            Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
+            ServerListener.Run(sslEndPoint, SslHelper.LoadCert());
 
             Console.WriteLine($"Server running");
 
@@ -206,7 +207,7 @@ namespace SslStreamPerf
         {
             Console.WriteLine("Running in-process over loopback");
 
-            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options), options.MessageSize);
+            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options));
 
             ClientHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
 
@@ -217,11 +218,16 @@ namespace SslStreamPerf
 
         static int RunNoNetwork(NoNetworkOptions options)
         {
+#if NETCOREAPP1_1
+            Console.WriteLine("Not supported on 1.1");
+            Environment.Exit(-1);
+#else
             Console.WriteLine("Running in-process over in-memory stream");
 
             ClientHandler[] clientHandlers = NoNetworkTest.Run(GetX509Certificate(options), options.Clients, options.MessageSize);
 
             ShowResults(options, clientHandlers);
+#endif
 
             return 1;
         }
