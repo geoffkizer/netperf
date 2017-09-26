@@ -15,15 +15,26 @@ namespace SslStreamPerf
             while (true)
             {
                 Socket accept = await listen.AcceptAsync();
-                TaskHelper.SpawnTask(async () =>
+                TaskHelper.SpawnTask(() =>
                 {
                     accept.NoDelay = true;
                     Stream s = new NetworkStream(accept);
 
-                    var serverHandler = new ServerHandler(s);
-                    await serverHandler.Run();
+                    var serverHandler = new ServerHandler(accept);
+                    serverHandler.Run();
                 });
             }
+        }
+
+        public static IPEndPoint Run(IPEndPoint endPoint)
+        {
+            Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            listen.Bind(endPoint);
+            listen.Listen(100);
+
+            TaskHelper.SpawnTask(() => RunServer(listen));
+
+            return (IPEndPoint)listen.LocalEndPoint;
         }
     }
 }

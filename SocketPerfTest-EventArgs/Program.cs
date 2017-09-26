@@ -11,7 +11,7 @@ namespace SslStreamPerf
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 5000);
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
-            ServerListener.Run(endPoint, null);
+            ServerListener.Run(endPoint);
 
             Console.WriteLine($"Server running");
 

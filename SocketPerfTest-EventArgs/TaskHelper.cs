@@ -21,5 +21,10 @@ namespace SslStreamPerf
                 }
             });
         }
+
+        public static void SpawnTask(Action a)
+        {
+            Task.Run(a);
+        }
     }
 }
