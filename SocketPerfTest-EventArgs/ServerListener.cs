@@ -18,7 +18,6 @@ namespace SslStreamPerf
                 TaskHelper.SpawnTask(() =>
                 {
                     accept.NoDelay = true;
-                    Stream s = new NetworkStream(accept);
 
                     var serverHandler = new ServerHandler(accept);
                     serverHandler.Run();
