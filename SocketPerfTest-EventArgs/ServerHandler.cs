@@ -27,7 +27,7 @@ namespace SslStreamPerf
             _readBuffer = new byte[ReadBufferSize];
 
             _readEventArgs = new SocketAsyncEventArgs();
-            _readEventArgs.SetBuffer(_readBuffer, 0, _readBuffer.Length);
+            _readEventArgs.SetBuffer(new Memory<byte>(_readBuffer));
             _readEventArgs.Completed += OnRead;
 
             _writeEventArgs = new SocketAsyncEventArgs();
@@ -100,7 +100,7 @@ namespace SslStreamPerf
                 // First message received.
                 // Construct a response message of the same size
                 _messageBuffer = CreateMessageBuffer(_messageByteCount);
-                _writeEventArgs.SetBuffer(_messageBuffer, 0, _messageByteCount);
+                _writeEventArgs.SetBuffer(new Memory<byte>(_messageBuffer));
             }
             else
             {
