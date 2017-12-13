@@ -8,7 +8,7 @@ using System.Buffers;
 
 namespace SocketPerfTest
 {
-    internal sealed unsafe class ServerHandler
+    internal sealed unsafe class ClrThreadServerHandler
     {
         private const int ReadBufferSize = 4 * 1024;
 
@@ -29,7 +29,7 @@ namespace SocketPerfTest
         private readonly PreAllocatedOverlapped _readOverlapped;
         private readonly PreAllocatedOverlapped _writeOverlapped;
 
-        public ServerHandler(Socket socket)
+        public ClrThreadServerHandler(Socket socket)
         {
             _socket = socket;
             _socketHandle = socket.Handle;

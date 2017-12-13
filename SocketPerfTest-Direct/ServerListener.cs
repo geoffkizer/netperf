@@ -10,7 +10,7 @@ namespace SocketPerfTest
 {
     internal static class ServerListener
     {
-        private static async Task RunServer(Socket listen)
+        private static async Task RunServer(Socket listen, string serverType, int batchSize)
         {
             while (true)
             {
@@ -19,19 +19,26 @@ namespace SocketPerfTest
                 {
                     accept.NoDelay = true;
 
-                    var serverHandler = new ServerHandler(accept);
-                    serverHandler.Run();
+                    if (serverType == "clrthreads")
+                    {
+                        var serverHandler = new ClrThreadServerHandler(accept);
+                        serverHandler.Run();
+                    }
+                    else
+                    {
+                        // TODO
+                    }
                 });
             }
         }
 
-        public static IPEndPoint Run(IPEndPoint endPoint)
+        public static IPEndPoint Run(IPEndPoint endPoint, string serverType, int batchSize)
         {
             Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listen.Bind(endPoint);
             listen.Listen(100);
 
-            TaskHelper.SpawnTask(() => RunServer(listen));
+            TaskHelper.SpawnTask(() => RunServer(listen, serverType, batchSize));
 
             return (IPEndPoint)listen.LocalEndPoint;
         }

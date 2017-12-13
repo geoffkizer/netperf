@@ -30,7 +30,7 @@ namespace SocketPerfTest
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
             Console.WriteLine($"Running on CLR thread pool");
-            ServerListener.Run(endPoint);
+            ServerListener.Run(endPoint, "clrthreads", 0);
 
             Console.WriteLine($"Server running");
 
@@ -45,7 +45,7 @@ namespace SocketPerfTest
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
             Console.WriteLine($"Running on custom thread pool");
-//            ServerListener.Run(endPoint);
+            ServerListener.Run(endPoint, "customthreads", 0);
 
             Console.WriteLine($"Server running");
 
@@ -60,7 +60,7 @@ namespace SocketPerfTest
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
             Console.WriteLine($"Running on thread-bound IO threads with batch size = {options.BatchSize}");
-//            ServerListener.Run(endPoint);
+            ServerListener.Run(endPoint, "threadbound", options.BatchSize);
 
             Console.WriteLine($"Server running");
 
