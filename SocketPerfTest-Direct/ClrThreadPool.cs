@@ -4,6 +4,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Net.Sockets;
 using System.Threading;
+using System.Diagnostics;
 
 namespace SocketPerfTest
 {
@@ -47,6 +48,31 @@ namespace SocketPerfTest
             }
 
             return h;
+        }
+
+        public static unsafe PreAllocatedOverlapped CreatePreAllocatedOverlapped(ThreadPoolBoundHandle boundHandle, Action<SocketError, int> callback)
+        {
+            // Note this will allocate for the delegate state.
+            // We don't care because we assume this is called infrequently -- i.e. per Socket, not per operation
+            return new PreAllocatedOverlapped((uint error, uint bytesTransferred, NativeOverlapped* nativeOverlapped) =>
+            {
+                boundHandle.FreeNativeOverlapped(nativeOverlapped);
+
+                if (error == 0)
+                {
+                    callback(SocketError.Success, (int)bytesTransferred);
+                }
+                else
+                {
+                    // This isn't right, we need to call WSAGetOverlappedResult or whatever
+
+                    SocketError socketError = SocketDirect.GetLastSocketError();
+                    Debug.Assert(socketError != SocketError.IOPending);
+                    Debug.Assert(socketError != SocketError.Success);
+
+                    callback(socketError, 0);
+                }
+            }, null, null);
         }
     }
 }

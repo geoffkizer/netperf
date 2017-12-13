@@ -39,7 +39,7 @@ namespace SocketPerfTest
             NativeOverlapped* overlapped,
             IntPtr completionRoutine);
 
-        private static SocketError GetLastSocketError()
+        public static SocketError GetLastSocketError()
         {
             int win32Error = Marshal.GetLastWin32Error();
             Debug.Assert(win32Error != 0, "Expected non-0 error");
@@ -48,7 +48,7 @@ namespace SocketPerfTest
 
         // Return true on success, false on pending; throw on error
         // Note, only single buffer supported for now
-        public static unsafe bool Receive(
+        public static unsafe SocketError Receive(
             IntPtr socketHandle,
             byte* buffer,
             int bufferLength,
@@ -62,21 +62,15 @@ namespace SocketPerfTest
 
             if (WSARecv(socketHandle, &wsaBuffer, 1, out bytesTransferred, ref socketFlags, nativeOverlapped, IntPtr.Zero) == 0)
             {
-                return true;
+                return SocketError.Success;
             }
 
-            SocketError error = GetLastSocketError();
-            if (error != SocketError.IOPending)
-            {
-                throw new SocketException((int)error);
-            }
-
-            return false;
+            return GetLastSocketError();
         }
 
         // Return true on success, false on pending; throw on error
         // Note, only single buffer supported for now
-        public static unsafe bool Send(
+        public static unsafe SocketError Send(
             IntPtr socketHandle,
             byte* buffer,
             int bufferLength,
@@ -90,18 +84,10 @@ namespace SocketPerfTest
 
             if (WSASend(socketHandle, &wsaBuffer, 1, out bytesTransferred, socketFlags, nativeOverlapped, IntPtr.Zero) == 0)
             {
-                return true;
+                return SocketError.Success;
             }
 
-            SocketError error = GetLastSocketError();
-            if (error != SocketError.IOPending)
-            {
-                throw new SocketException((int)error);
-            }
-
-            return false;
+            return GetLastSocketError();
         }
-
     }
-
 }
