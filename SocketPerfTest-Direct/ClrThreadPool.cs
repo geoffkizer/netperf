@@ -24,6 +24,15 @@ namespace SocketPerfTest
             SkipSetEventOnHandle = 2
         }
 
+
+        [DllImport("ws2_32", SetLastError = true)]
+        private static unsafe extern bool WSAGetOverlappedResult(
+            IntPtr socketHandle,
+            NativeOverlapped* overlapped,
+            out uint bytesTransferred,
+            bool wait,
+            out SocketFlags socketFlags);
+
         private class UnownedSocketHandle : SafeHandle
         {
             public UnownedSocketHandle(Socket socket)
@@ -64,13 +73,19 @@ namespace SocketPerfTest
                 }
                 else
                 {
-                    // This isn't right, we need to call WSAGetOverlappedResult or whatever
+                    // Retrieve actual error code
+                    if (WSAGetOverlappedResult(boundHandle.Handle.DangerousGetHandle(), nativeOverlapped, out _, false, out _))
+                    {
+                        callback(SocketError.Success, (int)bytesTransferred);
+                    }
+                    else
+                    {
+                        SocketError socketError = SocketDirect.GetLastSocketError();
+                        Debug.Assert(socketError != SocketError.IOPending);
+                        Debug.Assert(socketError != SocketError.Success);
 
-                    SocketError socketError = SocketDirect.GetLastSocketError();
-                    Debug.Assert(socketError != SocketError.IOPending);
-                    Debug.Assert(socketError != SocketError.Success);
-
-                    callback(socketError, 0);
+                        callback(socketError, 0);
+                    }
                 }
             }, null, null);
         }
