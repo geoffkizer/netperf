@@ -10,6 +10,8 @@ namespace SocketPerfTest
 {
     internal static class ServerListener
     {
+        private static CustomThreadPool s_customThreadPool;
+
         private static async Task RunServer(Socket listen, string serverType, int batchSize)
         {
             while (true)
@@ -24,8 +26,13 @@ namespace SocketPerfTest
                         var serverHandler = new ClrThreadServerHandler(accept);
                         serverHandler.Run();
                     }
-                    else
+                    else if (serverType == "customthreads")
                     {
+                        var serverHandler = new CustomThreadServerHandler(s_customThreadPool, accept);
+                        serverHandler.Run();
+                    }
+                    else
+                    { 
                         // TODO
                     }
                 });
@@ -34,6 +41,11 @@ namespace SocketPerfTest
 
         public static IPEndPoint Run(IPEndPoint endPoint, string serverType, int batchSize)
         {
+            if (serverType == "customthreads")
+            {
+                s_customThreadPool = new CustomThreadPool();
+            }
+
             Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listen.Bind(endPoint);
             listen.Listen(100);
