@@ -10,29 +10,6 @@ namespace SocketPerfTest
 {
     public static class ClrThreadPool
     {
-        // move, probably
-        [DllImport("kernel32.dll")]
-        private static unsafe extern bool SetFileCompletionNotificationModes(
-            IntPtr handle,
-            FileCompletionNotificationModes flags);
-
-        [Flags]
-        private enum FileCompletionNotificationModes : byte
-        {
-            None = 0,
-            SkipCompletionPortOnSuccess = 1,
-            SkipSetEventOnHandle = 2
-        }
-
-
-        [DllImport("ws2_32", SetLastError = true)]
-        private static unsafe extern bool WSAGetOverlappedResult(
-            IntPtr socketHandle,
-            NativeOverlapped* overlapped,
-            out uint bytesTransferred,
-            bool wait,
-            out SocketFlags socketFlags);
-
         private class UnownedSocketHandle : SafeHandle
         {
             public UnownedSocketHandle(Socket socket)
@@ -51,7 +28,8 @@ namespace SocketPerfTest
             ThreadPoolBoundHandle h = ThreadPoolBoundHandle.BindHandle(new UnownedSocketHandle(s));
 
             // Set completion mode
-            if (!SetFileCompletionNotificationModes(s.Handle, FileCompletionNotificationModes.SkipCompletionPortOnSuccess | FileCompletionNotificationModes.SkipSetEventOnHandle))
+            if (!Interop.SetFileCompletionNotificationModes(s.Handle, 
+                Interop.FileCompletionNotificationModes.SkipCompletionPortOnSuccess | Interop.FileCompletionNotificationModes.SkipSetEventOnHandle))
             {
                 throw new Exception("SetFileCompletionNotificationModes failed");
             }
@@ -74,7 +52,7 @@ namespace SocketPerfTest
                 else
                 {
                     // Retrieve actual error code
-                    if (WSAGetOverlappedResult(boundHandle.Handle.DangerousGetHandle(), nativeOverlapped, out _, false, out _))
+                    if (Interop.WSAGetOverlappedResult(boundHandle.Handle.DangerousGetHandle(), nativeOverlapped, out _, false, out _))
                     {
                         callback(SocketError.Success, (int)bytesTransferred);
                     }
