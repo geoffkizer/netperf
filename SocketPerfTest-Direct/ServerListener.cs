@@ -12,7 +12,7 @@ namespace SocketPerfTest
     {
         private static CustomThreadPool s_customThreadPool;
 
-        private static async Task RunServer(Socket listen, string serverType, int batchSize)
+        private static async Task RunServer(Socket listen, string serverType)
         {
             while (true)
             {
@@ -43,14 +43,14 @@ namespace SocketPerfTest
         {
             if (serverType == "customthreads")
             {
-                s_customThreadPool = new CustomThreadPool();
+                s_customThreadPool = new CustomThreadPool(batchSize);
             }
 
             Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             listen.Bind(endPoint);
             listen.Listen(100);
 
-            TaskHelper.SpawnTask(() => RunServer(listen, serverType, batchSize));
+            TaskHelper.SpawnTask(() => RunServer(listen, serverType));
 
             return (IPEndPoint)listen.LocalEndPoint;
         }

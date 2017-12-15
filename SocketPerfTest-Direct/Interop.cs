@@ -16,14 +16,6 @@ namespace SocketPerfTest
             IntPtr CompletionKey,
             int NumberOfConcurrentThreads);
 
-        [DllImport("kernel32.dll", SetLastError = true)]
-        internal static unsafe extern bool GetQueuedCompletionStatus(
-            IntPtr CompletionPort,
-            out int lpNumberOfBytes,
-            out IntPtr lpCompletionKey,
-            out NativeOverlapped* lpOverlapped,
-            int dwMilliseconds);
-
         [DllImport("kernel32.dll")]
         internal static unsafe extern bool SetFileCompletionNotificationModes(
             IntPtr handle,
@@ -36,6 +28,32 @@ namespace SocketPerfTest
             SkipCompletionPortOnSuccess = 1,
             SkipSetEventOnHandle = 2
         }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static unsafe extern bool GetQueuedCompletionStatus(
+            IntPtr CompletionPort,
+            out int lpNumberOfBytes,
+            out IntPtr lpCompletionKey,
+            out NativeOverlapped* lpOverlapped,
+            int dwMilliseconds);
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal unsafe struct OverlappedEntry
+        {
+            public IntPtr lpCompletionKey;
+            public NativeOverlapped* lpOverlapped;
+            public IntPtr Internal;
+            public int dwNumberOfBytesTransferred;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        internal static unsafe extern bool GetQueuedCompletionStatusEx(
+            IntPtr CompletionPort,
+            OverlappedEntry *lpCompletionPortEntries,
+            uint ulCount,
+            out uint ulNumEntriesRemoved,
+            int dwMilliseconds,
+            bool fAlertable);
 
         [DllImport("ws2_32", SetLastError = true)]
         internal static unsafe extern bool WSAGetOverlappedResult(

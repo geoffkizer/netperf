@@ -15,12 +15,14 @@ namespace SocketPerfTest
         [Verb("customthreads", HelpText = "Run server on custom thread pool.")]
         private class CustomThreadsOptions
         {
+            [Option('b', "batchSize", Default = 0, HelpText = "Batch size to GetQueuedCompletionStatusEx")]
+            public int BatchSize { get; set; }
         }
 
         [Verb("threadbound", HelpText = "Run server on thread-bound IO threads.")]
         private class ThreadBoundOptions
         {
-            [Option('b', "batchSize", Default = 1, HelpText = "Batch size to GetQueuedCompletionStatusEx")]
+            [Option('b', "batchSize", Default = 0, HelpText = "Batch size to GetQueuedCompletionStatusEx")]
             public int BatchSize { get; set; }
         }
 
@@ -44,8 +46,8 @@ namespace SocketPerfTest
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, 5000);
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
-            Console.WriteLine($"Running on custom thread pool");
-            ServerListener.Run(endPoint, "customthreads", 0);
+            Console.WriteLine($"Running on custom thread pool with batch size = {options.BatchSize}");
+            ServerListener.Run(endPoint, "customthreads", options.BatchSize);
 
             Console.WriteLine($"Server running");
 
