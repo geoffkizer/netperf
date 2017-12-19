@@ -28,7 +28,7 @@ namespace SocketPerfTest
         private readonly SimpleOverlapped _readOverlapped;
         private readonly SimpleOverlapped _writeOverlapped;
 
-        public CustomThreadServerHandler(CustomThreadPool threadPool, Socket socket)
+        public CustomThreadServerHandler(Socket socket)
         {
             _socket = socket;
             _socketHandle = socket.Handle;
@@ -39,8 +39,6 @@ namespace SocketPerfTest
             {
                 _readBufferPtr = p;
             }
-
-            threadPool.Bind(socket);
 
             _readOverlapped = new SimpleOverlapped(OnRead);
             _writeOverlapped = new SimpleOverlapped(OnWrite);
