@@ -23,7 +23,7 @@ namespace SslStreamPerf
                 // Loop, receiving requests and sending responses
                 while (true)
                 {
-                    int count = await _stream.ReadAsync(_readBuffer, 0, _readBuffer.Length);
+                    int count = await _stream.ReadAsync(new Memory<byte>(_readBuffer));
                     if (count == 0)
                     {
                         // EOF when trying to receive from client.
@@ -61,7 +61,7 @@ namespace SslStreamPerf
                             }
                         }
 
-                        await _stream.WriteAsync(_messageBuffer, 0, _messageBuffer.Length);
+                        await _stream.WriteAsync(new Memory<byte>(_messageBuffer));
 
                         messageByteCount = 0;
                         offset += index + 1;
