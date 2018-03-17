@@ -46,6 +46,9 @@ namespace SslStreamPerf
         {
             [Option('e', "endPoint", Default = "*:5000")]
             public string EndPoint { get; set; }
+
+            [Option("maxIOThreads", Default = 0)]
+            public int MaxIOThreads { get; set; }
         }
 
         [Verb("inproc", HelpText = "Run client and server in a single process over loopback.")]
@@ -92,9 +95,9 @@ namespace SslStreamPerf
             return new IPEndPoint(a, port);
         }
 
-        static int GetCurrentRequestCount(ClientHandler[] clientHandlers)
+        static long GetCurrentRequestCount(ClientHandler[] clientHandlers)
         {
-            int total = 0;
+            long total = 0;
             foreach (var c in clientHandlers)
             {
                 total += c.RequestCount;
@@ -108,59 +111,59 @@ namespace SslStreamPerf
             Console.WriteLine($"Test running with {options.Clients} clients and MessageSize={options.MessageSize}");
             Console.WriteLine(options.UseSsl ? "Using SSL" : "Using raw sockets (no SSL)");
 
-            int countAfterWarmup = 0;
+            int reportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval :
+                                        options.DurationTime > 0 ? options.DurationTime : 1;
+
+            long startCount = 0;
             if (options.WarmupTime != 0)
             {
                 Console.WriteLine($"Waiting {options.WarmupTime} seconds for warmup");
                 Thread.Sleep(options.WarmupTime * 1000);
                 Console.WriteLine("Warmup complete");
-                countAfterWarmup = GetCurrentRequestCount(clientHandlers);
+                startCount = GetCurrentRequestCount(clientHandlers);
             }
 
             Stopwatch timer = new Stopwatch();
-            long elapsed = 0;   // time in milliseconds
-            long previousElapsed = 0;
-            int previousCount = countAfterWarmup;
-            int reportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval :
-                                        options.DurationTime > 0 ? options.DurationTime : 1;
-            double currentRPS;
-            double averageRPS=0;
-            double previousAverageRPS = 0;
-            double drift;
-
             timer.Start();
+
+            TimeSpan previousElapsed = TimeSpan.Zero;
+            long previousCount = startCount;
+            double previousAverageRPS = 0;
+
             while (true)
             {
                 Thread.Sleep(reportingInterval * 1000);
 
-                elapsed = timer.ElapsedMilliseconds;
+                TimeSpan totalElapsed = timer.Elapsed;
+                long totalCount = GetCurrentRequestCount(clientHandlers);
 
-                int currentCount = GetCurrentRequestCount(clientHandlers);
-
-                currentRPS = (currentCount - previousCount) / ((elapsed - previousElapsed)/1000);
-                previousAverageRPS = averageRPS;
-                averageRPS = (currentCount - countAfterWarmup) / ((double)elapsed/1000);
-
-                drift = averageRPS - previousAverageRPS;
+                double currentRPS = (totalCount - previousCount) / (totalElapsed - previousElapsed).TotalSeconds;
+                double averageRPS = (totalCount - startCount) / totalElapsed.TotalSeconds;
 
                 if (options.ReportingInterval > 0)
                 {
-                    Console.WriteLine($"Elapsed time: {TimeSpan.FromSeconds(elapsed/1000)}    Current RPS: {currentRPS,10:####.0}    Average RPS: {averageRPS,10:####.0} Drift: {drift/averageRPS*100,8:0.00}%");
+                    // Write out interval stats.
+                    string drift = (previousAverageRPS == 0.0 ? "" :
+                        $"Drift: {(((averageRPS - previousAverageRPS) / previousAverageRPS) * 100),8:0.00}%");
+
+                    Console.WriteLine($"Elapsed time: {totalElapsed}    Current RPS: {currentRPS,10:####.0}    Average RPS: {averageRPS,10:####.0}    {drift}");
                 }
 
-                previousCount = currentCount;
-                previousElapsed = elapsed;
+                if ((options.NumberOfRequests > 0 && options.NumberOfRequests <= totalCount) ||
+                    (options.DurationTime > 0 && options.DurationTime <= totalElapsed.TotalSeconds))
+                {
+                    // Write out final stats.
+                    Console.WriteLine($"Total elapsed time: {totalElapsed}    Average RPS: {averageRPS,10:####.0}    Total requests: {totalCount - startCount}");
 
-                if ( options.NumberOfRequests > 0 && options.NumberOfRequests <= currentCount ) {
                     break;
                 }
-                if ( options.DurationTime > 0 && (options.DurationTime * 1000) <= elapsed ) {
-                    break;
-                }
+
+                previousCount = totalCount;
+                previousElapsed = totalElapsed;
+                previousAverageRPS = averageRPS;
             }
+
             timer.Stop();
-            // write out final stats if we are asked not to do it interactively.
-            Console.WriteLine($"Total elapsed time: {timer.Elapsed}    Average RPS: {averageRPS:0.0} Total requests: {GetCurrentRequestCount(clientHandlers)}");
         }
 
         static X509Certificate2 GetX509Certificate(BaseClientOptions options) =>
@@ -191,6 +194,16 @@ namespace SslStreamPerf
             {
                 Console.WriteLine("Could not parse endpoint");
                 return -1;
+            }
+
+            if (options.MaxIOThreads != 0)
+            {
+                ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int _);
+                if (!ThreadPool.SetMaxThreads(maxWorkerThreads, options.MaxIOThreads))
+                {
+                    Console.WriteLine("ThreadPool.SetMaxThreads failed");
+                    return -1;
+                }
             }
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
