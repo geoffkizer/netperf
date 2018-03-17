@@ -46,6 +46,9 @@ namespace SslStreamPerf
         {
             [Option('e', "endPoint", Default = "*:5000")]
             public string EndPoint { get; set; }
+
+            [Option("maxIOThreads", Default = 0)]
+            public int MaxIOThreads { get; set; }
         }
 
         [Verb("inproc", HelpText = "Run client and server in a single process over loopback.")]
@@ -191,6 +194,16 @@ namespace SslStreamPerf
             {
                 Console.WriteLine("Could not parse endpoint");
                 return -1;
+            }
+
+            if (options.MaxIOThreads != 0)
+            {
+                ThreadPool.GetMaxThreads(out int maxWorkerThreads, out int _);
+                if (!ThreadPool.SetMaxThreads(maxWorkerThreads, options.MaxIOThreads))
+                {
+                    Console.WriteLine("ThreadPool.SetMaxThreads failed");
+                    return -1;
+                }
             }
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
