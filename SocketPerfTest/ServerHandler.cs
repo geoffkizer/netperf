@@ -8,8 +8,8 @@ namespace SslStreamPerf
     {
         private byte[] _messageBuffer;
 
-        public ServerHandler(BufferManager bufferManager, Stream stream)
-            : base(bufferManager, stream)
+        public ServerHandler(ServerListener server, Stream stream)
+            : base(stream)
         {
         }
 

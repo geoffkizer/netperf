@@ -8,6 +8,7 @@ using System.IO;
 
 namespace SslStreamPerf
 {
+#if false   // Disabled for now
     internal static class NoNetworkTest
     {
         private static async Task<(ClientHandler clientHandler, ServerHandler serverHandler)> StartOneAsync(X509Certificate2 cert, int messageSize)
@@ -50,5 +51,6 @@ namespace SslStreamPerf
             return handlers.Select(x => x.clientHandler).ToArray();
         }
     }
+#endif
 }
 #endif

@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 
 // Stuff to do:
-// (1) Move messageSize and maxIOThreads to base
+// (1) Move messageSize to base
 // (2) Rework basic handing
 //          -- Always use messageSize (client and server)
 //          -- Combine code b/w client and server
@@ -17,13 +17,16 @@ namespace SslStreamPerf
 {
     class Program
     {
-        private class BaseClientOptions
+        private class BaseOptions
+        {
+            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
+            public int MessageSize { get; set; }
+        }
+
+        private class BaseClientOptions : BaseOptions
         {
             [Option('c', "connections", Default = 256)]
             public int Clients { get; set; }
-
-            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
-            public int MessageSize { get; set; }
 
             [Option('w', "warmupTime", Default = 5)]            // Seconds
             public int WarmupTime { get; set; }
@@ -41,21 +44,22 @@ namespace SslStreamPerf
             public bool UseSsl { get; set; }
         }
 
+        [Verb("server", HelpText = "Run server using specified IP/port, e,g, '1.2.3.4:5000'.")]
+        private class ServerOptions : BaseOptions
+        {
+            [Option('e', "endPoint", Default = "*:5000")]
+            public string EndPoint { get; set; }
+
+
+            [Option("maxIOThreads", Default = 0)]
+            public int MaxIOThreads { get; set; }
+        }
+
         [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
         private class ClientOptions : BaseClientOptions
         {
             [Option('e', "endPoint", Required = true)]
             public string EndPoint { get; set; }
-        }
-
-        [Verb("server", HelpText = "Run server using specified IP/port, e,g, '1.2.3.4:5000'.")]
-        private class ServerOptions
-        {
-            [Option('e', "endPoint", Default = "*:5000")]
-            public string EndPoint { get; set; }
-
-            [Option("maxIOThreads", Default = 0)]
-            public int MaxIOThreads { get; set; }
         }
 
         [Verb("inproc", HelpText = "Run client and server in a single process over loopback.")]
@@ -214,12 +218,14 @@ namespace SslStreamPerf
             }
 
             Console.WriteLine($"Running server on {endPoint} (raw)");
-            ServerListener.Run(endPoint, null);
+            var server1 = new ServerListener(endPoint, null, options.MessageSize);
+            server1.Start();
 
             IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
 
             Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
-            ServerListener.Run(sslEndPoint, SslHelper.LoadCert());
+            var server2 = new ServerListener(endPoint, SslHelper.LoadCert(), options.MessageSize);
+            server2.Start();
 
             Console.WriteLine($"Server running");
 
@@ -232,7 +238,10 @@ namespace SslStreamPerf
         {
             Console.WriteLine("Running in-process over loopback");
 
-            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options));
+            var server = new ServerListener(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options), options.MessageSize);
+            server.Start();
+
+            IPEndPoint serverEndpoint = server.EndPoint;
 
             ClientHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
 
@@ -247,11 +256,16 @@ namespace SslStreamPerf
             Console.WriteLine("Not supported on 1.1");
             Environment.Exit(-1);
 #else
+            Console.WriteLine("Temporarily disabled");
+            Environment.Exit(-1);
+#if false
+
             Console.WriteLine("Running in-process over in-memory stream");
 
             ClientHandler[] clientHandlers = NoNetworkTest.Run(GetX509Certificate(options), options.Clients, options.MessageSize);
 
             ShowResults(options, clientHandlers);
+#endif
 #endif
 
             return 1;

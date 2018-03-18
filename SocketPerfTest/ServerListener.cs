@@ -8,39 +8,49 @@ using System.IO;
 
 namespace SslStreamPerf
 {
-    internal static class ServerListener
+    internal sealed class ServerListener
     {
-        private static async Task RunServer(BufferManager bufferManager, Socket listen, X509Certificate2 cert)
+        private readonly Socket _listenSocket;
+        private readonly X509Certificate2 _certificate;
+        private readonly int _messageSize;
+
+        public ServerListener(IPEndPoint endPoint, X509Certificate2 cert, int messageSize)
+        {
+            _listenSocket = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            _listenSocket.Bind(endPoint);
+            _listenSocket.Listen(100);
+
+            _certificate = cert;
+            _messageSize = messageSize;
+        }
+
+        public IPEndPoint EndPoint => (IPEndPoint)_listenSocket.LocalEndPoint;
+        public int MessageSize => _messageSize;
+
+        public void Start()
+        {
+            TaskHelper.SpawnTask(() => RunServer());
+        }
+
+        private async Task RunServer()
         {
             while (true)
             {
-                Socket accept = await listen.AcceptAsync();
+                Socket accept = await _listenSocket.AcceptAsync();
                 TaskHelper.SpawnTask(async () =>
                 {
                     accept.NoDelay = true;
                     Stream s = new NetworkStream(accept);
 
-                    if (cert != null)
+                    if (_certificate != null)
                     {
-                        s = await SslHelper.GetServerStream(s, cert);
+                        s = await SslHelper.GetServerStream(s, _certificate);
                     }
 
-                    var serverHandler = new ServerHandler(bufferManager, s);
+                    var serverHandler = new ServerHandler(this, s);
                     await serverHandler.Run();
                 });
             }
-        }
-
-        // Returns IPEndPoint so that if port was 0 (autoselect), caller can get the port in use.
-        public static IPEndPoint Run(BufferManager bufferManager, IPEndPoint endPoint, X509Certificate2 cert)
-        {
-            Socket listen = new Socket(endPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            listen.Bind(endPoint);
-            listen.Listen(100);
-
-            TaskHelper.SpawnTask(() => RunServer(bufferManager, listen, cert));
-
-            return (IPEndPoint)listen.LocalEndPoint;
         }
     }
 }
