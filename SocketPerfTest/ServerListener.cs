@@ -8,11 +8,25 @@ using System.IO;
 
 namespace SslStreamPerf
 {
+    // TODO: Move
+    internal class ConnectionManager
+    {
+        private readonly int _messageSize;
+        // TODO: Buffer managers
+
+        public ConnectionManager(int messageSize)
+        {
+            _messageSize = messageSize;
+        }
+
+        public int MessageSize => _messageSize;
+    }
+
     internal sealed class ServerListener
     {
         private readonly Socket _listenSocket;
         private readonly X509Certificate2 _certificate;
-        private readonly int _messageSize;
+        private readonly ConnectionManager _connectionManager;
 
         public ServerListener(IPEndPoint endPoint, X509Certificate2 cert, int messageSize)
         {
@@ -21,11 +35,11 @@ namespace SslStreamPerf
             _listenSocket.Listen(100);
 
             _certificate = cert;
-            _messageSize = messageSize;
+
+            _connectionManager = new ConnectionManager(messageSize);
         }
 
         public IPEndPoint EndPoint => (IPEndPoint)_listenSocket.LocalEndPoint;
-        public int MessageSize => _messageSize;
 
         public void Start()
         {
@@ -47,7 +61,7 @@ namespace SslStreamPerf
                         s = await SslHelper.GetServerStream(s, _certificate);
                     }
 
-                    var serverHandler = new ServerHandler(this, s);
+                    var serverHandler = new ServerHandler(_connectionManager, s, isClient: false);
                     await serverHandler.Run();
                 });
             }
