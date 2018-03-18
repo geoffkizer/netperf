@@ -271,8 +271,6 @@ namespace SslStreamPerf
             return 1;
         }
 
-        private static BufferManager s_bufferManager = new BufferManager();
-
         static int Main(string[] args)
         {
             var parser = new Parser(settings =>

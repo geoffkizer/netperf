@@ -6,8 +6,6 @@ using System.Threading;
 
 namespace SslStreamPerf
 {
-    // TODO: Rename to connection handler ,and add flag for isclient or something like that
-
     internal sealed class ConnectionHandler
     {
         private readonly Stream _stream;
