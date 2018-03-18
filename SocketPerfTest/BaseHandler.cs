@@ -5,7 +5,13 @@ using System.Threading.Tasks;
 
 namespace SslStreamPerf
 {
-    // CONSIDER: Make read buffer size larger.
+    // Next steps here:
+    // Move all the Client-only code to ClientHandler
+    // Make ServerHandler use BufferManager
+
+    // TODO: This is only used by the ClientHandler now, and it's kind of rotted compared to the ServerHandler code.
+    // This doesn't really matter as we don't care so much about the perf of the ClientHandler.
+    // That said, I should rewrite ClientHandler to match ServerHandler implementation.
 
     internal abstract class BaseHandler : IDisposable
     {

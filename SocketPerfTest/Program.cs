@@ -6,6 +6,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 
+// Stuff to do:
+// (1) Move messageSize and maxIOThreads to base
+// (2) Rework basic handing
+//          -- Always use messageSize (client and server)
+//          -- Combine code b/w client and server
+// (3) Add buffer manager usage
+
 namespace SslStreamPerf
 {
     class Program
@@ -249,6 +256,8 @@ namespace SslStreamPerf
 
             return 1;
         }
+
+        private static BufferManager s_bufferManager = new BufferManager();
 
         static int Main(string[] args)
         {
