@@ -1,27 +1,11 @@
-﻿using System;
-using System.Linq;
+﻿using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using System.Net.Sockets;
-using System.Net;
-using System.IO;
 
 namespace SslStreamPerf
 {
-    // TODO: Move
-    internal class ConnectionManager
-    {
-        private readonly int _messageSize;
-        // TODO: Buffer managers
-
-        public ConnectionManager(int messageSize)
-        {
-            _messageSize = messageSize;
-        }
-
-        public int MessageSize => _messageSize;
-    }
-
     internal sealed class ServerListener
     {
         private readonly Socket _listenSocket;
