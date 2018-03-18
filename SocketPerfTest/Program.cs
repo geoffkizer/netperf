@@ -224,7 +224,7 @@ namespace SslStreamPerf
             IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
 
             Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
-            var server2 = new ServerListener(endPoint, SslHelper.LoadCert(), options.MessageSize);
+            var server2 = new ServerListener(sslEndPoint, SslHelper.LoadCert(), options.MessageSize);
             server2.Start();
 
             Console.WriteLine($"Server running");
