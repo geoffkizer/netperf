@@ -106,7 +106,7 @@ namespace SslStreamPerf
             return new IPEndPoint(a, port);
         }
 
-        static long GetCurrentRequestCount(ClientHandler[] clientHandlers)
+        static long GetCurrentRequestCount(ConnectionHandler[] clientHandlers)
         {
             long total = 0;
             foreach (var c in clientHandlers)
@@ -117,7 +117,7 @@ namespace SslStreamPerf
             return total;
         }
 
-        static void ShowResults(BaseClientOptions options, ClientHandler[] clientHandlers)
+        static void ShowResults(BaseClientOptions options, ConnectionHandler[] clientHandlers)
         {
             Console.WriteLine($"Test running with {options.Clients} clients and MessageSize={options.MessageSize}");
             Console.WriteLine(options.UseSsl ? "Using SSL" : "Using raw sockets (no SSL)");
@@ -191,7 +191,7 @@ namespace SslStreamPerf
 
             Console.WriteLine($"Running client to {endPoint}");
 
-            ClientHandler[] clientHandlers = ClientRunner.Run(endPoint, options.UseSsl, options.Clients, options.MessageSize);
+            ConnectionHandler[] clientHandlers = ClientRunner.Run(endPoint, options.UseSsl, options.Clients, options.MessageSize);
 
             ShowResults(options, clientHandlers);
 
@@ -243,7 +243,7 @@ namespace SslStreamPerf
 
             IPEndPoint serverEndpoint = server.EndPoint;
 
-            ClientHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
+            ConnectionHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
 
             ShowResults(options, clientHandlers);
 

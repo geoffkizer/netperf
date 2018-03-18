@@ -61,7 +61,7 @@ namespace SslStreamPerf
                         s = await SslHelper.GetServerStream(s, _certificate);
                     }
 
-                    var serverHandler = new ServerHandler(_connectionManager, s, isClient: false);
+                    var serverHandler = new ConnectionHandler(_connectionManager, s, isClient: false);
                     await serverHandler.Run();
                 });
             }

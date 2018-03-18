@@ -10,7 +10,7 @@ namespace SslStreamPerf
 {
     internal static class ClientRunner
     {
-        private static async Task<ClientHandler> StartOneAsync(IPEndPoint serverEndpoint, bool useSsl, int messageSize)
+        private static async Task<ConnectionHandler> StartOneAsync(IPEndPoint serverEndpoint, bool useSsl, ConnectionManager connectionManager)
         {
             Socket client = new Socket(serverEndpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             await client.ConnectAsync(serverEndpoint);
@@ -22,14 +22,16 @@ namespace SslStreamPerf
                 s = await SslHelper.GetClientStream(s);
             }
 
-            var clientHandler = new ClientHandler(s, messageSize);
+            var clientHandler = new ConnectionHandler(connectionManager, s, isClient: true);
             return clientHandler;
         }
 
-        public static ClientHandler[] Run(IPEndPoint serverEndpoint, bool useSsl, int clientCount, int messageSize)
+        public static ConnectionHandler[] Run(IPEndPoint serverEndpoint, bool useSsl, int clientCount, int messageSize)
         {
+            ConnectionManager connectionManager = new ConnectionManager(messageSize);
+
             var tasks = Enumerable.Range(0, clientCount)
-                            .Select(_ => StartOneAsync(serverEndpoint, useSsl, messageSize))
+                            .Select(_ => StartOneAsync(serverEndpoint, useSsl, connectionManager))
                             .ToArray();
 
             Task.WaitAll(tasks);

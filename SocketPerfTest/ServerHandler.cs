@@ -2,12 +2,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace SslStreamPerf
 {
     // TODO: Rename to connection handler ,and add flag for isclient or something like that
 
-    internal sealed class ServerHandler //: BaseHandler
+    internal sealed class ConnectionHandler
     {
         private readonly Stream _stream;
         private readonly ConnectionManager _connectionManager;
@@ -16,7 +17,9 @@ namespace SslStreamPerf
         private readonly Memory<byte> _readBuffer;
         private readonly ReadOnlyMemory<byte> _writeBuffer;
 
-        public ServerHandler(ConnectionManager connectionManager, Stream stream, bool isClient)
+        private int _requestCount;
+
+        public ConnectionHandler(ConnectionManager connectionManager, Stream stream, bool isClient)
         {
             _connectionManager = connectionManager;
             _stream = stream;
@@ -26,6 +29,8 @@ namespace SslStreamPerf
 
             _writeBuffer = ConstructMessage(_connectionManager.MessageSize);
         }
+
+        public int RequestCount => Volatile.Read(ref _requestCount);
 
         private static ReadOnlyMemory<byte> ConstructMessage(int messageSize)
         {
@@ -75,6 +80,8 @@ namespace SslStreamPerf
                             break;
                         }
                     }
+
+                    _requestCount++;
 
                     // Send message to peer
                     await _stream.WriteAsync(_writeBuffer);
