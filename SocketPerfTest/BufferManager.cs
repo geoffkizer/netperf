@@ -33,11 +33,13 @@ namespace SslStreamPerf
             // Allocate more 
             // TODO: Be smarter here, as multiple threads could cause allocation at once
 
-            IntPtr nativeAlloc = Marshal.AllocHGlobal(_bufferSize + BuffersPerAlloc);
+            IntPtr nativeAlloc = Marshal.AllocHGlobal(_bufferSize * BuffersPerAlloc);
             for (int i = 1; i < BuffersPerAlloc; i++)
             {
                 _bufferManagerBuffers.Add(new BufferManagerBuffer(this, nativeAlloc + i * _bufferSize));
             }
+
+            Console.WriteLine($"Buffer slab allocated at {nativeAlloc:X}");
 
             return new BufferManagerBuffer(this, nativeAlloc).Memory;
         }
@@ -88,6 +90,8 @@ namespace SslStreamPerf
 
             public override unsafe MemoryHandle Pin(int byteOffset = 0)
             {
+                Retain();
+
                 if (byteOffset != 0)
                     throw new NotSupportedException("Pin: byteOffset != 0.  What does this mean?");
 

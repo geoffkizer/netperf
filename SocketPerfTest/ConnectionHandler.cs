@@ -23,9 +23,8 @@ namespace SslStreamPerf
             _stream = stream;
             _isClient = isClient;
 
-            _readBuffer = new Memory<byte>(new byte[4096]);
-
-            _writeBuffer = ConstructMessage(_connectionManager.MessageSize);
+            _readBuffer = connectionManager.GetReadBuffer();
+            _writeBuffer = connectionManager.GetWriteBuffer();
         }
 
         public int RequestCount => Volatile.Read(ref _requestCount);
