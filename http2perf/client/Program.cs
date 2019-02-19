@@ -61,10 +61,12 @@ class Test
     private sealed class WorkerState
     {
         public int RequestsMade;
+        public int SyncCompletions;
 
         public WorkerState()
         {
             RequestsMade = 0;
+            SyncCompletions = 0;
         }
     }
 
@@ -78,7 +80,13 @@ class Test
         {
             while (true)
             {
-                using (HttpResponseMessage r = await invoker.SendAsync(message, default(CancellationToken)))
+                Task<HttpResponseMessage> t = invoker.SendAsync(message, default(CancellationToken));
+                if (t.IsCompleted)
+                {
+                    workerState.SyncCompletions++;
+                }
+
+                using (HttpResponseMessage r = await t)
                 using (Stream s = await r.Content.ReadAsStreamAsync())
                 {
                     if (r.StatusCode != HttpStatusCode.OK)
@@ -143,6 +151,7 @@ class Test
         {
             int gen0 = GC.CollectionCount(0), gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
             int startRequests = workerStates.Sum(w => w.RequestsMade);
+            int startSyncCompletions = workerStates.Sum(w => w.SyncCompletions);
 
             Thread.Sleep(1000);
 
@@ -151,10 +160,12 @@ class Test
             gen2 = GC.CollectionCount(2) - gen2;
 
             int endRequests = workerStates.Sum(w => w.RequestsMade);
+            int endSyncCompletions = workerStates.Sum(w => w.SyncCompletions);
+
             TimeSpan elapsed = DateTime.Now - baseTime;
             int totalRequests = endRequests - baseRequests;
             double rps = (totalRequests / elapsed.TotalSeconds);
-            Console.WriteLine($"{elapsed}: {endRequests - startRequests}, average {rps:0.0} : {gen0} / {gen1} / {gen2}");
+            Console.WriteLine($"{elapsed}: {endRequests - startRequests}, average {rps:0.0}, syncCompletions = {endSyncCompletions - startSyncCompletions} : {gen0} / {gen1} / {gen2}");
         }
     }
 }
