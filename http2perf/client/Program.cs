@@ -10,31 +10,50 @@ using System.Threading.Tasks;
 
 class Test
 {
+    private static int s_concurrencyLevel = 1;
     private static int s_startupTime = 5;
     private static Version s_version = HttpVersion.Version11;
 
     private static void ProcessArgs(string[] args)
     {
-        foreach (var arg in args)
+        for (int i = 0; i < args.Length; i++)
         {
-            if (arg == "2")
+            if (args[i] == "2")
             {
                 s_version = HttpVersion.Version20;
                 Environment.SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_SOCKETSHTTPHANDLER_HTTP2SUPPORT", "true");
             }
-            else if (arg == "winhttp")
+            else if (args[i] == "winhttp")
             {
                 Environment.SetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER", "false");
             }
-            else if (arg == "-?")
+            else if (args[i] == "-c")
+            {
+                i++;
+                if (i == args.Length)
+                {
+                    Console.WriteLine($"Missing value for -c argument");
+                    Environment.Exit(-1);
+                }
+
+                if (!int.TryParse(args[i], out s_concurrencyLevel))
+                {
+                    Console.WriteLine($"Could not parse value for -c argument");
+                    Environment.Exit(-1);
+                }
+            }
+            else if (args[i] == "-?")
             {
                 Console.WriteLine("Optional arguments:");
+                Console.WriteLine("    -c <n>     Concurrency level (default is 1)");
                 Console.WriteLine("    2          Use HTTP2 (default is HTTP/1.1)");
                 Console.WriteLine("    winhttp    Use WinHttpHandler (default is SocketsHttpHandler)");
+                Environment.Exit(0);
             }
             else 
             {
-                Console.WriteLine($"Unknown argument: {arg}");
+                Console.WriteLine($"Unknown argument: {args[i]}");
+                Environment.Exit(-1);
             }
         }
     }
@@ -49,10 +68,8 @@ class Test
         }
     }
 
-    private static async Task RunWorker(WorkerState workerState)
+    private static async Task RunWorker(HttpMessageInvoker invoker, WorkerState workerState)
     {
-        var handler = new HttpClientHandler() { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
-        var invoker = new HttpMessageInvoker(handler);
         var message = new HttpRequestMessage(HttpMethod.Get, "https://localhost:5001/");
         message.Version = s_version;
 
@@ -101,20 +118,31 @@ class Test
     {
         ProcessArgs(args);
 
-        WorkerState workerState = new WorkerState();
-        Task.Run(() => RunWorker(workerState));
+        Console.WriteLine($"Protocol version is {s_version}");
+        Console.WriteLine($"Concurrency level is {s_concurrencyLevel}");
+
+        var handler = new HttpClientHandler() { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator };
+        var invoker = new HttpMessageInvoker(handler);
+
+        WorkerState[] workerStates = new WorkerState[s_concurrencyLevel];
+        for (int i = 0; i < s_concurrencyLevel; i++)
+        {
+            var workerState = new WorkerState();
+            workerStates[i] = workerState;
+            Task.Run(() => RunWorker(invoker, workerState));
+        }
 
         Console.WriteLine($"Waiting {s_startupTime} seconds for startup");
 
         Thread.Sleep(s_startupTime * 1000);
 
-        int baseRequests = workerState.RequestsMade;
+        int baseRequests = workerStates.Sum(w => w.RequestsMade);
         DateTime baseTime = DateTime.Now;
 
         while (true)
         {
             int gen0 = GC.CollectionCount(0), gen1 = GC.CollectionCount(1), gen2 = GC.CollectionCount(2);
-            int startRequests = workerState.RequestsMade;
+            int startRequests = workerStates.Sum(w => w.RequestsMade);
 
             Thread.Sleep(1000);
 
@@ -122,7 +150,7 @@ class Test
             gen1 = GC.CollectionCount(1) - gen1;
             gen2 = GC.CollectionCount(2) - gen2;
 
-            int endRequests = workerState.RequestsMade;
+            int endRequests = workerStates.Sum(w => w.RequestsMade);
             TimeSpan elapsed = DateTime.Now - baseTime;
             int totalRequests = endRequests - baseRequests;
             double rps = (totalRequests / elapsed.TotalSeconds);

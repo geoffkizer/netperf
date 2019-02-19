@@ -186,6 +186,9 @@ public sealed class Http2Server
 
     public async void Run()
     {
+        byte[] responseFrame = new byte[s_ResponseFrame.Length];
+        s_ResponseFrame.CopyTo(responseFrame);
+
         try 
         {
             // Read 24 byte connection preface
@@ -225,10 +228,10 @@ public sealed class Http2Server
                 // Write response
 
                 // First, write the stream ID
-                BinaryPrimitives.WriteInt32BigEndian(s_ResponseFrame.Span.Slice(s_headerFrameStart + 5), streamId);
-                BinaryPrimitives.WriteInt32BigEndian(s_ResponseFrame.Span.Slice(s_dataFrameStart + 5), streamId);
+                BinaryPrimitives.WriteInt32BigEndian(new Span<byte>(responseFrame).Slice(s_headerFrameStart + 5), streamId);
+                BinaryPrimitives.WriteInt32BigEndian(new Span<byte>(responseFrame).Slice(s_dataFrameStart + 5), streamId);
 
-                await _stream.WriteAsync(s_ResponseFrame);
+                await _stream.WriteAsync(responseFrame);
             }
         }
         catch (Exception e)
