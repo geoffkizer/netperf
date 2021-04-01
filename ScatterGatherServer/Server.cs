@@ -16,8 +16,9 @@ namespace ScatterGatherServer
     sealed class Server
     {
         private readonly Socket _listenSocket;
-        private ReadOnlyMemory<byte> _responseHeader;
-        private ReadOnlyMemory<byte> _responseBody;
+        private readonly ServerMode _mode;
+        private readonly ReadOnlyMemory<byte> _responseHeader;
+        private readonly ReadOnlyMemory<byte> _responseBody;
 
         private static ReadOnlyMemory<byte> s_requestHeadersEnd = Encoding.UTF8.GetBytes("\r\n\r\n");
 
@@ -26,7 +27,9 @@ namespace ScatterGatherServer
             _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             _listenSocket.Bind(endPoint);
 
-            _responseHeader = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nDate: Date: Thu, 01 Apr 2021 01:23:45 GMT\r\nServer: ScatterGatherServer\r\nContent-Length: {contentSize}\r\n\r\n");
+            _mode = mode;
+
+            _responseHeader = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nDate: Date: Thu, 01 Apr 2021 01:23:45 GMT\r\nServer: ScatterGatherServer-{mode}\r\nContent-Length: {contentSize}\r\n\r\n");
             _responseBody = Encoding.UTF8.GetBytes(new string('a', contentSize));
         }
 
@@ -45,15 +48,11 @@ namespace ScatterGatherServer
 
         private async Task HandleConnection(Socket socket)
         {
-            // This buffer is 256K currently (originally was 64K); I'm going to assume that's enough in practice.
-            //byte[] buffer = GC.AllocateUninitializedArray<byte>(256 * 1024, pinned: true);
-
-            //Console.WriteLine("Connection received");
+            var readBuffer = new Memory<byte>(GC.AllocateUninitializedArray<byte>(8 * 1024, pinned: true));
+            var writeBuffer = new Memory<byte>(GC.AllocateUninitializedArray<byte>(_responseHeader.Length + _responseBody.Length, pinned: true));
 
             try
             {
-                var readBuffer = new Memory<byte>(new byte[8 * 1024]);
-
                 while (true)
                 {
                     // Read the request header
@@ -94,10 +93,29 @@ namespace ScatterGatherServer
                         }
                     }
 
-                    // Send the response.
-                    // TODO: This is only one variation, the dumb variation
-                    await socket.SendAsync(_responseHeader, SocketFlags.None);
-                    await socket.SendAsync(_responseBody, SocketFlags.None);
+                    // Send the response using the appropriate method.
+                    switch (_mode)
+                    {
+                        case ServerMode.SendMultiple:
+                            // Do a separate send for each part.
+                            await socket.SendAsync(_responseHeader, SocketFlags.None);
+                            await socket.SendAsync(_responseBody, SocketFlags.None);
+                            break;
+
+                        case ServerMode.BufferSends:
+                            // Copy the two parts into a single buffer and send it.
+                            _responseHeader.CopyTo(writeBuffer);
+                            _responseBody.CopyTo(writeBuffer.Slice(_responseHeader.Length));
+                            await socket.SendAsync(writeBuffer.Slice(0, _responseHeader.Length + _responseBody.Length), SocketFlags.None);
+                            break;
+
+                        case ServerMode.GatherSends:
+                            // TODO
+                            break;
+
+                        default:
+                            throw new InvalidOperationException($"Unknown server mode {_mode}");
+                    }
                 }
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset)
