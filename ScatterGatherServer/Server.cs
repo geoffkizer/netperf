@@ -6,6 +6,13 @@ using System.Threading.Tasks;
 
 namespace ScatterGatherServer
 {
+    enum ServerMode
+    {
+        SendMultiple,
+        BufferSends,
+        GatherSends
+    }
+
     sealed class Server
     {
         private readonly Socket _listenSocket;
@@ -14,7 +21,7 @@ namespace ScatterGatherServer
 
         private static ReadOnlyMemory<byte> s_requestHeadersEnd = Encoding.UTF8.GetBytes("\r\n\r\n");
 
-        public Server(IPEndPoint endPoint, int contentSize)
+        public Server(IPEndPoint endPoint, int contentSize, ServerMode mode)
         {
             _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             _listenSocket.Bind(endPoint);
