@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ScatterGatherServer
 {
@@ -21,8 +19,7 @@ namespace ScatterGatherServer
             _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             _listenSocket.Bind(endPoint);
 
-
-            _responseHeader = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nDate: Date: Thu, 01 Apr 2021 03:29:00 GMT\r\nServer: ScatterGatherServer\r\nContent-Length: {contentSize}\r\n\r\n");
+            _responseHeader = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nDate: Date: Thu, 01 Apr 2021 01:23:45 GMT\r\nServer: ScatterGatherServer\r\nContent-Length: {contentSize}\r\n\r\n");
             _responseBody = Encoding.UTF8.GetBytes(new string('a', contentSize));
         }
 
@@ -44,7 +41,7 @@ namespace ScatterGatherServer
             // This buffer is 256K currently (originally was 64K); I'm going to assume that's enough in practice.
             //byte[] buffer = GC.AllocateUninitializedArray<byte>(256 * 1024, pinned: true);
 
-            Console.WriteLine("Connection received");
+            //Console.WriteLine("Connection received");
 
             try
             {
@@ -80,7 +77,7 @@ namespace ScatterGatherServer
                                 throw new Exception("Unexpected data received after header end");
                             }
 
-                            // Read the request header
+                            // Done reading the request header
                             break;
                         }
 
@@ -102,7 +99,7 @@ namespace ScatterGatherServer
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Exception: {e}");
+                Console.WriteLine($"Exception during request processing: {e}");
             }
             finally
             {
