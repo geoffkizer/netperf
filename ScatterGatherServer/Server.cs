@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace ScatterGatherServer
 {
@@ -17,8 +18,8 @@ namespace ScatterGatherServer
     {
         private readonly Socket _listenSocket;
         private readonly ServerMode _mode;
-        private readonly ReadOnlyMemory<byte> _responseHeader;
-        private readonly ReadOnlyMemory<byte> _responseBody;
+        private readonly byte[] _responseHeader;
+        private readonly byte[] _responseBody;
 
         private static ReadOnlyMemory<byte> s_requestHeadersEnd = Encoding.UTF8.GetBytes("\r\n\r\n");
 
@@ -50,6 +51,9 @@ namespace ScatterGatherServer
         {
             var readBuffer = new Memory<byte>(GC.AllocateUninitializedArray<byte>(8 * 1024, pinned: true));
             var writeBuffer = new Memory<byte>(GC.AllocateUninitializedArray<byte>(_responseHeader.Length + _responseBody.Length, pinned: true));
+
+            var gatherEventArgs = new ValueTaskSocketAsyncEventArgs();
+            var bufferList = new List<ArraySegment<byte>>();
 
             try
             {
@@ -110,7 +114,23 @@ namespace ScatterGatherServer
                             break;
 
                         case ServerMode.GatherSends:
-                            // TODO
+                            // Use SAEA gathered send.
+                            bufferList.Clear();
+                            bufferList.Add(_responseHeader);
+                            bufferList.Add(_responseBody);
+                            gatherEventArgs.BufferList = bufferList;
+
+                            gatherEventArgs.PrepareForOperation();
+
+                            if (socket.SendAsync(gatherEventArgs))
+                            {
+                                await gatherEventArgs.Task;
+                            }
+
+                            if (gatherEventArgs.SocketError != SocketError.Success)
+                            {
+                                throw new SocketException((int)gatherEventArgs.SocketError);
+                            }
                             break;
 
                         default:
