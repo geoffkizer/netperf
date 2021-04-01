@@ -1,0 +1,42 @@
+# The scenarios in this file accept the following arguments:
+  # --variable serverIP= (default 127.0.0.1)
+  # --variable serverPort= (default 8000)
+  # --variable contentSize= (default 1)
+  # --variable mode= [BufferSends|GatherSends|SendMultiple]
+
+imports:
+  - https://raw.githubusercontent.com/dotnet/crank/main/src/Microsoft.Crank.Jobs.Bombardier/bombardier.yml
+  - https://raw.githubusercontent.com/aspnet/Benchmarks/main/scenarios/aspnet.profiles.yml
+
+variables:
+  serverScheme: http
+  serverPort: 8000
+  contentSize: 1
+  mode: SendMultiple  
+  
+jobs:
+    
+  myServer:
+    source:
+      repository: https://github.com/geoffkizer/netperf.git
+      branchOrCommit: master
+      project: ScatterGatherServer/ScatterGatherServer.csproj
+    readyStateText: Application started.
+    arguments: '--ip {{serverIP}} --port {{serverPort}} --size {{contentSize}} --mode {{mode}}'
+
+  myLocalServer:
+    source:
+      localFolder: C:/Users/sebros.REDMOND/Documents/Projects/benchmarks/src/Downstream
+      project: ./Downstream.csproj
+    readyStateText: Application started.
+    arguments: '--urls {{serverScheme}}://*:{{serverPort}}'
+  
+scenarios:
+  myScenario:
+    application:
+      job: myServer
+    load:
+      job: bombardier
+      variables:
+        path: /
+        presetHeaders: plaintext
