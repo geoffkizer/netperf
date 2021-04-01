@@ -1,6 +1,6 @@
 # The scenarios in this file accept the following arguments:
-  # --variable serverIP= (default 127.0.0.1)
-  # --variable serverPort= (default 8000)
+  # --variable serverAddress= 
+  # --variable serverPort= 
   # --variable contentSize= (default 1)
   # --variable mode= [BufferSends|GatherSends|SendMultiple]
 
@@ -9,20 +9,17 @@ imports:
   - https://raw.githubusercontent.com/aspnet/Benchmarks/main/scenarios/aspnet.profiles.yml
 
 variables:
-  serverScheme: http
-  serverPort: 8000
   contentSize: 1
   mode: SendMultiple  
   
 jobs:
-    
   myServer:
     source:
       repository: https://github.com/geoffkizer/netperf.git
       branchOrCommit: master
       project: ScatterGatherServer/ScatterGatherServer.csproj
     readyStateText: Application started.
-    arguments: '--ip {{serverIP}} --port {{serverPort}} --size {{contentSize}} --mode {{mode}}'
+    arguments: '--ip {{serverAddress}} --port {{serverPort}} --size {{contentSize}} --mode {{mode}}'
 
   myLocalServer:
     source:
