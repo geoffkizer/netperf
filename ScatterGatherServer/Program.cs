@@ -28,6 +28,7 @@ namespace ScatterGatherServer
                 Console.WriteLine($"Server bound on {server.EndPoint}");
                 Console.WriteLine($"Server send mode: {mode}");
                 Console.WriteLine($"Content-Length: {size}");
+                Console.WriteLine($"Application started.");
 
                 server.Run();
             });
