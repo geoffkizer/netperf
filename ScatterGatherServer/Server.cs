@@ -43,6 +43,7 @@ namespace ScatterGatherServer
             while (true)
             {
                 Socket socket = _listenSocket.Accept();
+                socket.NoDelay = true;
                 _ = Task.Run(() => HandleConnection(socket));
             }
         }
