@@ -257,6 +257,8 @@ namespace SslStreamPerf
                 settings.HelpWriter = Console.Out;
             });
 
+            Console.WriteLine($"Using {typeof(Socket).Assembly.FullName} from {typeof(Socket).Assembly.Location}");
+
             return parser.ParseArguments<ClientOptions, ServerOptions, InProcOptions, NoNetworkOptions>(args).MapResult(
                 (ClientOptions opts) => RunClient(opts),
                 (ServerOptions opts) => RunServer(opts),
