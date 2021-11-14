@@ -4,12 +4,13 @@ using System.Threading;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 
 namespace SslStreamPerf
 {
     class Program
     {
+        // TODO: This is only derived once now.
+        // Change to just BaseOptions for both client and server.
         private class BaseClientOptions
         {
             [Option('c', "connections", Default = 256)]
@@ -49,16 +50,6 @@ namespace SslStreamPerf
 
             [Option("maxIOThreads", Default = 0)]
             public int MaxIOThreads { get; set; }
-        }
-
-        [Verb("inproc", HelpText = "Run client and server in a single process over loopback.")]
-        private class InProcOptions : BaseClientOptions
-        {
-        }
-
-        [Verb("nonetwork", HelpText = "Run client and server in a single process over an in-memory stream.")]
-        private class NoNetworkOptions : BaseClientOptions
-        {
         }
 
         static IPEndPoint TryParseEndPoint(string s)
@@ -166,9 +157,6 @@ namespace SslStreamPerf
             timer.Stop();
         }
 
-        static X509Certificate2 GetX509Certificate(BaseClientOptions options) =>
-            options.UseSsl ? SslHelper.LoadCert() : null;
-
         static int RunClient(ClientOptions options)
         {
             IPEndPoint endPoint = TryParseEndPoint(options.EndPoint);
@@ -212,40 +200,11 @@ namespace SslStreamPerf
             IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
 
             Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
-            ServerListener.Run(sslEndPoint, SslHelper.LoadCert());
+            ServerListener.Run(sslEndPoint, SslHelper.CreateSelfSignedCert());
 
             Console.WriteLine($"Server running");
 
             Thread.Sleep(Timeout.Infinite);
-
-            return 1;
-        }
-
-        static int RunInProc(InProcOptions options)
-        {
-            Console.WriteLine("Running in-process over loopback");
-
-            IPEndPoint serverEndpoint = ServerListener.Run(new IPEndPoint(IPAddress.Loopback, 0), GetX509Certificate(options));
-
-            ClientHandler[] clientHandlers = ClientRunner.Run(serverEndpoint, options.UseSsl, options.Clients, options.MessageSize);
-
-            ShowResults(options, clientHandlers);
-
-            return 1;
-        }
-
-        static int RunNoNetwork(NoNetworkOptions options)
-        {
-#if NETCOREAPP1_1
-            Console.WriteLine("Not supported on 1.1");
-            Environment.Exit(-1);
-#else
-            Console.WriteLine("Running in-process over in-memory stream");
-
-            ClientHandler[] clientHandlers = NoNetworkTest.Run(GetX509Certificate(options), options.Clients, options.MessageSize);
-
-            ShowResults(options, clientHandlers);
-#endif
 
             return 1;
         }
@@ -259,11 +218,9 @@ namespace SslStreamPerf
 
             Console.WriteLine($"Using {typeof(Socket).Assembly.FullName} from {typeof(Socket).Assembly.Location}");
 
-            return parser.ParseArguments<ClientOptions, ServerOptions, InProcOptions, NoNetworkOptions>(args).MapResult(
+            return parser.ParseArguments<ClientOptions, ServerOptions>(args).MapResult(
                 (ClientOptions opts) => RunClient(opts),
                 (ServerOptions opts) => RunServer(opts),
-                (InProcOptions opts) => RunInProc(opts),
-                (NoNetworkOptions opts) => RunNoNetwork(opts),
                 _ => 1
             );
         }
