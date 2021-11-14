@@ -155,13 +155,16 @@ namespace SslStreamPerf
                 }
             }
 
-            Console.WriteLine($"Running server on {endPoint} (raw)");
-            ServerListener.Run(endPoint, null);
-
-            IPEndPoint sslEndPoint = new IPEndPoint(endPoint.Address, endPoint.Port + 1);
-
-            Console.WriteLine($"Running server on {sslEndPoint} (SSL)");
-            ServerListener.Run(sslEndPoint, SslHelper.CreateSelfSignedCert());
+            if (options.UseSsl)
+            {
+                Console.WriteLine($"Running server on {endPoint} (SSL)");
+                ServerListener.Run(endPoint, SslHelper.CreateSelfSignedCert());
+            }
+            else
+            {
+                Console.WriteLine($"Running server on {endPoint} (no SSL)");
+                ServerListener.Run(endPoint, null);
+            }
 
             Console.WriteLine($"Server running");
 
