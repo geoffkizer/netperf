@@ -9,44 +9,42 @@ namespace SslStreamPerf
 {
     class Program
     {
-        // TODO: This is only derived once now.
-        // Change to just BaseOptions for both client and server.
-        private class BaseClientOptions
+        [Verb("client", HelpText = "Run client.")]
+        private class ClientOptions
         {
-            [Option('c', "connections", Default = 256)]
-            public int Clients { get; set; }
+            [Option('e', "endPoint", Default = "127.0.0.1:5000", HelpText = "Server endpoint to connect to.")]
+            public string EndPoint { get; set; }
 
-            [Option('s', "messageSize", Default = 256, HelpText = "Message size to send")]
+            [Option('s', "messageSize", Default = 256, HelpText = "Size of request message to send to server.")]
             public int MessageSize { get; set; }
 
-            [Option('w', "warmupTime", Default = 5)]            // Seconds
+            [Option("ssl", Default = false, HelpText = "Use SSL.")]
+            public bool UseSsl { get; set; }
+
+            [Option('c', "connections", Default = 256, HelpText = "Number of connections to establish to server.")]
+            public int Connections { get; set; }
+
+            [Option('w', "warmupTime", Default = 5, HelpText = "Warmup time in seconds.")]
             public int WarmupTime { get; set; }
 
-            [Option('i', "reportingInterval", Default = 3)]     // Seconds
+            [Option('i', "reportingInterval", Default = 3, HelpText = "Reporting interval in seconds.")]
             public int ReportingInterval { get; set; }
 
-            [Option('n', "numberOfRequests", Default = 0, HelpText = "Total number of requests if positive number")]      // count
-            public int NumberOfRequests { get; set; }
-
-            [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds if positive number")]          // seconds
+            [Option('t', "durationTime", Default = 0, HelpText = "Duration of test in seconds (0 means infinite)")]
             public int DurationTime { get; set; }
-
-            [Option("ssl", Default = false, HelpText = "Use SSL")]
-            public bool UseSsl { get; set; }
         }
 
-        [Verb("client", HelpText = "Run client using specified IP/port, e.g. '1.2.3.4:5000'.")]
-        private class ClientOptions : BaseClientOptions
-        {
-            [Option('e', "endPoint", Required = true)]
-            public string EndPoint { get; set; }
-        }
-
-        [Verb("server", HelpText = "Run server using specified IP/port, e,g, '1.2.3.4:5000'.")]
+        [Verb("server", HelpText = "Run server.")]
         private class ServerOptions
         {
-            [Option('e', "endPoint", Default = "*:5000")]
+            [Option('e', "endPoint", Default = "127.0.0.1:5000", HelpText = "Local endpoint to listen on.")]
             public string EndPoint { get; set; }
+
+            [Option('s', "messageSize", Default = 256, HelpText = "Size of response message to send to client.")]
+            public int MessageSize { get; set; }
+
+            [Option("ssl", Default = false, HelpText = "Use SSL.")]
+            public bool UseSsl { get; set; }
 
             [Option("maxIOThreads", Default = 0)]
             public int MaxIOThreads { get; set; }
@@ -63,10 +61,10 @@ namespace SslStreamPerf
             return total;
         }
 
-        static void ShowResults(BaseClientOptions options, ClientHandler[] clientHandlers)
+        static void ShowResults(ClientOptions options, ClientHandler[] clientHandlers)
         {
-            Console.WriteLine($"Test running with {options.Clients} clients and MessageSize={options.MessageSize}");
-            Console.WriteLine(options.UseSsl ? "Using SSL" : "Using raw sockets (no SSL)");
+            Console.WriteLine($"Test running with {options.Connections} connections and MessageSize={options.MessageSize}");
+            Console.WriteLine(options.UseSsl ? "Using SSL" : "Using sockets (no SSL)");
 
             int reportingInterval = options.ReportingInterval > 0 ? options.ReportingInterval :
                                         options.DurationTime > 0 ? options.DurationTime : 1;
@@ -106,8 +104,7 @@ namespace SslStreamPerf
                     Console.WriteLine($"Elapsed time: {totalElapsed}    Current RPS: {currentRPS,10:####.0}    Average RPS: {averageRPS,10:####.0}    {drift}");
                 }
 
-                if ((options.NumberOfRequests > 0 && options.NumberOfRequests <= totalCount) ||
-                    (options.DurationTime > 0 && options.DurationTime <= totalElapsed.TotalSeconds))
+                if (options.DurationTime > 0 && options.DurationTime <= totalElapsed.TotalSeconds)
                 {
                     // Write out final stats.
                     Console.WriteLine($"Total elapsed time: {totalElapsed}    Average RPS: {averageRPS,10:####.0}    Total requests: {totalCount - startCount}");
@@ -133,7 +130,7 @@ namespace SslStreamPerf
 
             Console.WriteLine($"Running client to {endPoint}");
 
-            ClientHandler[] clientHandlers = ClientRunner.Run(endPoint, options.UseSsl, options.Clients, options.MessageSize);
+            ClientHandler[] clientHandlers = ClientRunner.Run(endPoint, options.UseSsl, options.Connections, options.MessageSize);
 
             ShowResults(options, clientHandlers);
 
