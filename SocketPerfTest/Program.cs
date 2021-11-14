@@ -52,40 +52,6 @@ namespace SslStreamPerf
             public int MaxIOThreads { get; set; }
         }
 
-        static IPEndPoint TryParseEndPoint(string s)
-        {
-            var splits = s.Split(':');
-            if (splits.Length != 2)
-            {
-                return null;
-            }
-
-            IPAddress a;
-            if (splits[0] == "*")
-            {
-                a = IPAddress.Any;
-            }
-            else
-            {
-                if (!IPAddress.TryParse(splits[0], out a))
-                {
-                    return null;
-                }
-            }
-
-            if (!int.TryParse(splits[1], out int port))
-            {
-                return null;
-            }
-
-            if (port == 0)
-            {
-                return null;
-            }
-
-            return new IPEndPoint(a, port);
-        }
-
         static long GetCurrentRequestCount(ClientHandler[] clientHandlers)
         {
             long total = 0;
@@ -159,10 +125,9 @@ namespace SslStreamPerf
 
         static int RunClient(ClientOptions options)
         {
-            IPEndPoint endPoint = TryParseEndPoint(options.EndPoint);
-            if (endPoint == null)
+            if (!IPEndPoint.TryParse(options.EndPoint, out IPEndPoint endPoint))
             {
-                Console.WriteLine("Could not parse endpoint");
+                Console.WriteLine($"Could not parse endpoint {options.EndPoint}");
                 return -1;
             }
 
@@ -177,10 +142,9 @@ namespace SslStreamPerf
 
         static int RunServer(ServerOptions options)
         {
-            IPEndPoint endPoint = TryParseEndPoint(options.EndPoint);
-            if (endPoint == null)
+            if (!IPEndPoint.TryParse(options.EndPoint, out IPEndPoint endPoint))
             {
-                Console.WriteLine("Could not parse endpoint");
+                Console.WriteLine($"Could not parse endpoint {options.EndPoint}");
                 return -1;
             }
 
